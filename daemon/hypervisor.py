@@ -47,11 +47,22 @@ class Hypervisor:
         """
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
         if os.path.exists(level_dir):
-            cmd = 'git pull {0}'.format(level_dir)
+            cmd = 'git pull'.format(level_dir)
+            cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
+            ret = subprocess.call(cmd, shell=True, cwd=cwd)
         else:
             repo = 'git://github.com/pathwar/level-{0}'.format(level['name'])
             cmd = 'git clone {0} {1}'.format(repo, level_dir)
-        subprocess.call(cmd, shell=True)
+            ret = subprocess.call(cmd, shell=True) == 0:
+        return ret == 0
+
+    def run_level(self, level):
+        """
+        I start the level.
+        """
+        cmd = 'fig up -d'
+        cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
+        subprocess.call(cmd, shell=True, cwd=cwd)
 
     def go(self):
         """
@@ -60,8 +71,8 @@ class Hypervisor:
         levels = self.get_levels()
         if levels:
             for level in levels:
-                self.prepare_level(level)
-
+                if self.prepare_level(level):
+                    self.run_level(level)
 
 
 if __name__ == '__main__':
