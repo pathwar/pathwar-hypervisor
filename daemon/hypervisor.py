@@ -53,7 +53,7 @@ class Hypervisor:
         else:
             repo = 'git://github.com/pathwar/level-{0}'.format(level['name'])
             cmd = 'git clone {0} {1}'.format(repo, level_dir)
-            ret = subprocess.call(cmd, shell=True) == 0:
+            ret = subprocess.call(cmd, shell=True)
         return ret == 0
 
     def run_level(self, level):
