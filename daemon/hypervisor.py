@@ -56,6 +56,15 @@ class Hypervisor:
             ret = subprocess.call(cmd, shell=True)
         return ret == 0
 
+    def inspect_level(self, level):
+        """
+        I fetch information about the level.
+        """
+        cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
+        cmd = 'fig ps -q'
+        for container in subprocess.check_output(cmd, shell=True, cwd=cwd).splitlines():
+            print container
+
     def run_level(self, level):
         """
         I start the level.
@@ -73,6 +82,7 @@ class Hypervisor:
             for level in levels:
                 if self.prepare_level(level):
                     self.run_level(level)
+                    self.inspect_level(level)
 
 
 if __name__ == '__main__':
