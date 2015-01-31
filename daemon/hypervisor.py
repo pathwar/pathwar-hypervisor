@@ -62,8 +62,11 @@ class Hypervisor:
         """
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         cmd = 'fig ps -q'
+        passphrases = []
         for container in subprocess.check_output(cmd, shell=True, cwd=cwd).splitlines():
-            print container
+            cmd = "docker exec {0} /bin/sh -c 'cat /pathwar/passphrases/*'".format(container)
+            passphrases += subprocess.check_output(cmd, shell=True).splitlines()
+        print passphrases
 
     def run_level(self, level):
         """
