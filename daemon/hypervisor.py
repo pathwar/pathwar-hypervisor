@@ -63,10 +63,19 @@ class Hypervisor:
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         cmd = 'fig ps -q'
         passphrases = []
+        ports = []
         for container in subprocess.check_output(cmd, shell=True, cwd=cwd).splitlines():
+            # passphrases
             cmd = "docker exec {0} /bin/sh -c 'cat /pathwar/passphrases/*'".format(container)
             passphrases += subprocess.check_output(cmd, shell=True).splitlines()
-        print passphrases
+            # ports
+            cmd = 'docker inspect {0}'.format(container)
+            res = json.loads(subprocess.check_output(cmd, shell=True))
+            if len(res):
+                data = res[0]
+                if 'Ports' in data['NetworkSettings']:
+                    ports.append(data['NetworkSettings']['Ports'])
+        return {'Ports': ports, 'Passphrases': passphrases}
 
     def run_level(self, level):
         """
@@ -85,7 +94,9 @@ class Hypervisor:
             for level in levels:
                 if self.prepare_level(level):
                     self.run_level(level)
-                    self.inspect_level(level)
+                    data = self.inspect_level(level)
+                    # @todo: post data to API
+                    print data
 
 
 if __name__ == '__main__':
