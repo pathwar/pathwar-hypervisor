@@ -3,3 +3,5 @@ hypervisor:
   volumes:
   - .:/usr/src/app/
   - /var/run/docker.sock:/var/run/docker.sock
+  environment:
+  - HOSTNAME=195.154.233.249

@@ -8,7 +8,7 @@ import os.path
 
 API_ENDPOINT = 'http://root-token:@212.83.158.125:1337'
 REPO_DIR = 'levels'
-HOSTNAME= 'techno.sbrk.org'
+HOSTNAME= os.environ['HOSTNAME']
 
 
 class Hypervisor:
@@ -112,9 +112,15 @@ class Hypervisor:
 
         # extract passphrases
         response['passphrases'] = data['Passphrases']
+        print('response: {}'.format(response))
 
-        r = requests.patch(patch_url, data=response, headers={'If-Match': level_instance['_etag']})
-        print(r.status_code)
+        headers = {
+            'If-Match': level_instance['_etag'],
+            'Content-Type': 'application/json',
+        }
+
+        r = requests.patch(patch_url, data=json.dumps(response), headers=headers)
+        print(r.status_code, r.json())
 
     def go(self):
         """
