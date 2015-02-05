@@ -1,0 +1,5 @@
+hypervisor:
+  build: .
+  volumes:
+  - .:/usr/src/app/
+  - /var/run/docker.sock:/var/run/docker.sock
