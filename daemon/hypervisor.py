@@ -28,25 +28,26 @@ class Hypervisor:
         if not os.path.exists(REPO_DIR):
             os.mkdir(REPO_DIR)
 
-    def get_levels(self):
+    def get_level_instances(self):
         """
         I fetch levels from the API.
         """
         url = '{0}/{1}'.format(API_ENDPOINT, 'level-instances?embedded={"level":1}')
         r = requests.get(url)
         if r.status_code == 200:
-            levels = []
+            level_instances = []
             content = r.json()
             if '_items' in content:
                 for item in content['_items']:
-                    levels.append(item['level'])
-            return levels
+                    level_instances.append(item)
+            return level_instances
         return None
 
-    def prepare_level(self, level):
+    def prepare_level(self, level_instance):
         """
         I get and prepare the level.
         """
+        level = level_instance['level']
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
         if os.path.exists(level_dir):
             cmd = 'git pull'.format(level_dir)
@@ -58,10 +59,11 @@ class Hypervisor:
             ret = subprocess.call(cmd, shell=True)
         return ret == 0
 
-    def inspect_level(self, level):
+    def inspect_level(self, level_instance):
         """
         I fetch information about the level.
         """
+        level = level_instance['level']
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         cmd = 'fig ps -q'
         passphrases = []
@@ -82,20 +84,22 @@ class Hypervisor:
                     ports.append(data['NetworkSettings']['Ports'])
         return {'Ports': ports, 'Passphrases': passphrases}
 
-    def run_level(self, level):
+    def run_level(self, level_instance):
         """
         I start the level.
         """
+        level = level_instance['level']
         cmd = 'fig up -d'
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         subprocess.call(cmd, shell=True, cwd=cwd)
 
-    def notify_api(self, level, data):
+    def notify_api(self, level_instance, data):
         """
         I notify the API that a level is up, or not.
         """
 
-        patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level['_id'])
+        level = level_instance['level']
+        patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level_instance['_id'])
 
         response = dict()
 
@@ -109,20 +113,20 @@ class Hypervisor:
         # extract passphrases
         response['passphrases'] = data['Passphrases']
 
-        r = requests.patch(patch_url, data=response, headers={'If-Match': level['_etag']})
+        r = requests.patch(patch_url, data=response, headers={'If-Match': level_instance['_etag']})
         print(r.status_code)
 
     def go(self):
         """
         I'm the main.
         """
-        levels = self.get_levels()
-        if levels:
-            for level in levels:
-                if self.prepare_level(level):
-                    self.run_level(level)
-                    data = self.inspect_level(level)
-                    self.notify_api(level, data)
+        level_instances = self.get_level_instances()
+        if level_instances:
+            for level_instance in level_instances:
+                if self.prepare_level(level_instance):
+                    self.run_level(level_instance)
+                    data = self.inspect_level(level_instance)
+                    self.notify_api(level_instance, data)
 
 
 if __name__ == '__main__':
