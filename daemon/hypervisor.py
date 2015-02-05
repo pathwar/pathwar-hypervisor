@@ -57,7 +57,7 @@ class Hypervisor:
             repo = 'git://github.com/pathwar/level-{0}'.format(level['name'])
             cmd = 'git clone {0} {1}'.format(repo, level_dir)
             ret = subprocess.call(cmd, shell=True)
-        return ret == 0
+        return os.path.exists(os.path.join(level_dir, 'fig.yml'))
 
     def inspect_level(self, level_instance):
         """
