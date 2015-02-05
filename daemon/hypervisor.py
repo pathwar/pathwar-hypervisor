@@ -6,8 +6,9 @@ import subprocess
 import os.path
 
 
-API_ENDPOINT = 'http://root-token:@212.83.158.125:1337/level-instances?embedded={"level":1}'
+API_ENDPOINT = 'http://root-token:@212.83.158.125:1337'
 REPO_DIR = 'levels'
+HOSTNAME= 'techno.sbrk.org'
 
 
 class Hypervisor:
@@ -31,7 +32,8 @@ class Hypervisor:
         """
         I fetch levels from the API.
         """
-        r = requests.get(API_ENDPOINT)
+        url = '{0}/{1}'.format(API_ENDPOINT, 'level-instances?embedded={"level":1}')
+        r = requests.get(url)
         if r.status_code == 200:
             levels = []
             content = r.json()
@@ -66,9 +68,12 @@ class Hypervisor:
         ports = []
         for container in subprocess.check_output(cmd, shell=True, cwd=cwd).splitlines():
             # passphrases
-            cmd = "docker exec {0} /bin/sh -c 'cat /pathwar/passphrases/*'".format(container)
-            passphrases += subprocess.check_output(cmd, shell=True).splitlines()
-            # ports
+            cmd = "docker exec {0} /bin/sh -c 'for file in /pathwar/passphrases/*; do echo -n \"$(basename $file) \"  ; cat $file; done'".format(container)
+            for line in subprocess.check_output(cmd, shell=True).splitlines():
+                chunks = line.split()
+                if len(chunks) == 2:
+                    passphrases.append({'key': chunks[0], 'value': chunks[1]})
+            # ports mappings
             cmd = 'docker inspect {0}'.format(container)
             res = json.loads(subprocess.check_output(cmd, shell=True))
             if len(res):
@@ -85,6 +90,28 @@ class Hypervisor:
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         subprocess.call(cmd, shell=True, cwd=cwd)
 
+    def notify_api(self, level, data):
+        """
+        I notify the API that a level is up, or not.
+        """
+
+        patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level['_id'])
+
+        response = dict()
+
+        # extract HTTP port from port mapping
+        response['urls'] = []
+        for mapping in data['Ports']:
+            if '80/tcp' in mapping:
+                host_port = mapping['80/tcp'][0]['HostPort']
+                response['urls'].append({'name': 'http', 'url': 'http://{0}:{1}'.format(HOSTNAME, host_port)})
+
+        # extract passphrases
+        response['passphrases'] = data['Passphrases']
+
+        r = requests.patch(patch_url, data=response, headers={'If-Match': level['_etag']})
+        print(r.status_code)
+
     def go(self):
         """
         I'm the main.
@@ -95,8 +122,7 @@ class Hypervisor:
                 if self.prepare_level(level):
                     self.run_level(level)
                     data = self.inspect_level(level)
-                    # @todo: post data to API
-                    print data
+                    self.notify_api(level, data)
 
 
 if __name__ == '__main__':
