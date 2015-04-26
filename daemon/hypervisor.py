@@ -76,6 +76,8 @@ class Hypervisor:
         level = level_instance['level']
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
 
+        print('yo')
+
         logging.info('checking level {0}'.format(level['name']))
         if not level_instance['active'] or not 'url' in level:
             return False
