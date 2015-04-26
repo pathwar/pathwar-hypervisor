@@ -123,7 +123,7 @@ class Hypervisor:
         """
         level = level_instance['level']
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
-        cmd = 'fig ps -q'
+        cmd = 'docker-compose ps -q'
         passphrases = []
         ports = []
         for container in subprocess.check_output(cmd, shell=True, cwd=cwd).splitlines():
@@ -147,7 +147,7 @@ class Hypervisor:
         I start the level.
         """
         level = level_instance['level']
-        cmd = 'fig up -d'
+        cmd = 'docker-compose up -d'
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         subprocess.call(cmd, shell=True, cwd=cwd)
 
