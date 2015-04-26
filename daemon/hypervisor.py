@@ -110,16 +110,15 @@ class Hypervisor:
             logging.info('downloading package for level {0}'.format(
                 level['name']))
             cmd = 's3cmd get {0} {1}/package.tar'.format(level['url'], tmp)
-            subprocess.call(cmd, shell=True)
+            subprocess.check_call(cmd, shell=True)
 
             logging.info('extracting level {0}'.format(level['name']))
             cmd = 'tar -xf {0}/package.tar -C {0}'.format(tmp)
-            subprocess.call(cmd, shell=True)
+            subprocess.check_call(cmd, shell=True)
 
             logging.info('moving level {0}'.format(level['name']))
             cmd = 'mv {0} {1}'.format(tmp, level_dir)
-            subprocess.call(cmd, shell=True)
-
+            subprocess.check_call(cmd, shell=True)
 
             logging.info('creating images for level {0}'.format(level['name']))
             with open('{0}/docker-compose.yml'.format(level_dir)) as fh:
@@ -136,8 +135,8 @@ class Hypervisor:
                             cmd = 'docker rmi -f {0}'.format(conf['image'])
                             subprocess.call(cmd, shell=True)
 
-                            cmd = 'docker import {0} {1}'.format(tarball, conf['image'])
-                            subprocess.call(cmd, shell=True)
+                            cmd = 'cat {0} | docker import - {1}'.format(tarball, conf['image'])
+                            subprocess.check_call(cmd, shell=True)
             return True
         except Exception as error:
             logging.warning('failed to prepare level {0}: {1}'.format(
