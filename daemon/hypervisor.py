@@ -6,9 +6,11 @@ import logging
 import tempfile
 import subprocess
 import os.path
+import re
 import shutil
 import sys
 import time
+import yaml
 
 
 # configured via docker-compose.yml
@@ -118,13 +120,32 @@ class Hypervisor:
             cmd = 'mv {0} {1}'.format(tmp, level_dir)
             subprocess.call(cmd, shell=True)
 
-            logging.info('building level {0}'.format(level['name']))
-            cmd = 'docker-compose build'
-            subprocess.call(cmd, shell=True, cwd=level_dir)
+
+            logging.info('creating images for level {0}'.format(level['name']))
+            with open('{0}/docker-compose.yml'.format(level_dir)) as fh:
+                origin = yaml.safe_load(fh)
+                output = dict()
+                for name, conf in origin.iteritems():
+                    if 'image' in conf:
+                        m = re.match('image\-for\-(.*)', conf['image'])
+                        if m:
+                            tarball = '{0}/{1}.tar'.format(level_dir, m.group(1))
+                            logging.info('converting export {0} to image {1}'\
+                                         .format(tarball, conf['image']))
+
+                            cmd = 'docker rmi -f {0}'.format(conf['image'])
+                            subprocess.call(cmd, shell=True)
+
+                            cmd = 'docker import {0} {1}'.format(tarball, conf['image'])
+                            subprocess.call(cmd, shell=True)
             return True
         except Exception as error:
             logging.warning('failed to prepare level {0}: {1}'.format(
                 level['name'], error))
+
+            # FIXME
+            sys.exit(1)
+
             shutil.rmtree(tmp)
             return False
 
@@ -216,7 +237,6 @@ class Hypervisor:
             if level_instances:
                 for level_instance in level_instances:
                     if self.prepare_level(level_instance):
-                        self.destroy_level(level_instance)
                         self.run_level(level_instance)
                         data = self.inspect_level(level_instance)
                         self.notify_api(level_instance, data)

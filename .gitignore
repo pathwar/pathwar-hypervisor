@@ -1,3 +1,5 @@
+.s3cfg
+.gitignore
 docker-compose.yml
 
 *~

@@ -1,4 +1,4 @@
+docker-compose
 argparse
 requests
 wsgiref
-docker-compose
