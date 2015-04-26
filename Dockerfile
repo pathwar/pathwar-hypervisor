@@ -4,7 +4,7 @@ FROM dduportal/fig:latest
 # Install dependencies
 RUN apt-get update \
  && apt-get upgrade -yq \
- && apt-get install -yq python-pip python2.7 git sudo curl \
+ && apt-get install -yq python-pip python2.7 git sudo curl s3cmd \
  && apt-get clean
 RUN curl -sSL https://get.docker.com/ubuntu/ | sudo sh
 

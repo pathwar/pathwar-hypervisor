@@ -8,3 +8,5 @@ hypervisor:
   - API_ENDPOINT=http://root-token:@62.210.75.196:5000
   - S3CMD_ACCESS_KEY=
   - S3CMD_SECRET_KEY=
+  - S3CMD_HOST_BASE=
+  - S3CMD_HOST_BUCKET=

@@ -7,6 +7,7 @@ import tempfile
 import subprocess
 import os.path
 import shutil
+import sys
 import time
 
 
@@ -76,28 +77,30 @@ class Hypervisor:
         level = level_instance['level']
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
 
-        print('yo')
-
         logging.info('checking level {0}'.format(level['name']))
         if not level_instance['active'] or not 'url' in level:
             return False
-        if level_exists(level_dir) and not level_needs_redump(level_dir, level['url']:)
+        if self.level_exists(level_dir) and not\
+           self.level_needs_redump(level_dir, level['url']):
             return False
 
         logging.info('preparing level {0}'.format(level['name']))
 
         tmp = tempfile.mkdtemp()
         try:
-            logging.info('setting version for level {0}'.format(level['name']))
+            logging.info('setting version for level {0}'.format(
+                level['name']))
             with open('{0}/VERSION'.format(tmp), 'w+') as fh:
                 fh.write(level['url'])
 
-            logging.info('setting next redump timestamp {0}'.format(level['name']))
+            logging.info('setting next redump timestamp {0}'.format(
+                level['name']))
             with open('{0}/REDUMP'.format(tmp), 'w+') as fh:
                 next_redump_at = int(time.time() + level['redump'])
                 fh.write('{0}'.format(next_redump_at))
 
-            logging.info('downloading package for level {0}'.format(level['name']))
+            logging.info('downloading package for level {0}'.format(
+                level['name']))
             cmd = 's3cmd get {0} {1}/package.tar'.format(level['url'], tmp)
             subprocess.call(cmd, shell=True)
 
@@ -112,11 +115,13 @@ class Hypervisor:
             # FIXME: create image from export
 
             logging.info('building level {0}'.format(level['name']))
-            cmd = 'docker-compose -f {0}/docker-compose.yml build'.format(level_dir)
+            cmd = 'docker-compose -f {0}/docker-compose.yml build'.format(
+                level_dir)
             subprocess.call(cmd, shell=True)
             return True
         except:
-            logging.wanring('failed to prepare level {0}'.format(level['name']))
+            logging.warning('failed to prepare level {0}'.format(
+                level['name']))
             shutil.rmtree(tmp)
             return False
 
