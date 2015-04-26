@@ -1,5 +1,5 @@
 # This image contains fig
-FROM dduportal/fig:latest
+FROM ubuntu:trusty
 
 # Install dependencies
 RUN apt-get update \
@@ -7,6 +7,9 @@ RUN apt-get update \
  && apt-get install -yq python-pip python2.7 git sudo curl s3cmd \
  && apt-get clean
 RUN curl -sSL https://get.docker.com/ubuntu/ | sudo sh
+
+# FIXME
+ADD .s3cfg /root/
 
 # Prepare hypervisor workspace
 RUN mkdir -p /usr/src/app
