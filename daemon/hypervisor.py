@@ -75,12 +75,11 @@ class Hypervisor:
         """
         level = level_instance['level']
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
-        level_url = level['url']
 
         logging.info('checking level {0}'.format(level['name']))
-        if not level_instance['active'] or not level['url']:
+        if not level_instance['active'] or not 'url' in level:
             return False
-        if level_exists(level_dir) and not level_needs_redump(level_dir, level_url):
+        if level_exists(level_dir) and not level_needs_redump(level_dir, level['url']:)
             return False
 
         logging.info('preparing level {0}'.format(level['name']))
@@ -89,7 +88,7 @@ class Hypervisor:
         try:
             logging.info('setting version for level {0}'.format(level['name']))
             with open('{0}/VERSION'.format(tmp), 'w+') as fh:
-                fh.write(level_url)
+                fh.write(level['url'])
 
             logging.info('setting next redump timestamp {0}'.format(level['name']))
             with open('{0}/REDUMP'.format(tmp), 'w+') as fh:
@@ -107,6 +106,8 @@ class Hypervisor:
             logging.info('moving level {0}'.format(level['name']))
             cmd = 'mv {0} {1}'.format(tmp, level_dir)
             subprocess.call(cmd, shell=True)
+
+            # FIXME: create image from export
 
             logging.info('building level {0}'.format(level['name']))
             cmd = 'docker-compose -f {0}/docker-compose.yml build'.format(level_dir)
@@ -151,6 +152,19 @@ class Hypervisor:
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         subprocess.call(cmd, shell=True, cwd=cwd)
 
+    def destroy_level(self, level_instance):
+        """
+        I destroy the level.
+        """
+        level = level_instance['level']
+        cmd = 'docker-compose stop'
+        cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
+        subprocess.call(cmd, shell=True, cwd=cwd)
+
+        cmd = 'docker-compose rm -f'
+        cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
+        subprocess.call(cmd, shell=True, cwd=cwd)
+
     def notify_api(self, level_instance, data):
         """
         I notify the API that a level is up, or not.
@@ -190,14 +204,14 @@ class Hypervisor:
             if level_instances:
                 for level_instance in level_instances:
                     if self.prepare_level(level_instance):
-                        pass
+                        self.destroy_level(level_instance)
+                        self.run_level(level_instance)
+                        data = self.inspect_level(level_instance)
+                        self.notify_api(level_instance, data)
             time.sleep(5)
-#                    self.run_level(level_instance)
-#                    data = self.inspect_level(level_instance)
-#                    self.notify_api(level_instance, data)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     h = Hypervisor()
     h.go()
