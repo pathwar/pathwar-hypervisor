@@ -5,3 +5,4 @@ hypervisor:
   - /var/run/docker.sock:/var/run/docker.sock
   environment:
   - HOSTNAME=195.154.233.249
+  - API_ENDPOINT=http://localhost:5000

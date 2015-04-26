@@ -2,14 +2,19 @@
 
 import requests
 import json
+import log
+import tempfile
 import subprocess
 import os.path
+import shutil
 
 
-API_ENDPOINT = 'http://root-token:@212.83.158.125:1337'
-REPO_DIR = 'levels'
+# configured via docker-compose.yml
+API_ENDPOINT = os.envron['API_ENDPOINT']
 HOSTNAME= os.environ['HOSTNAME']
 
+# misc
+REPO_DIR = 'levels'
 
 class Hypervisor:
 
@@ -43,21 +48,60 @@ class Hypervisor:
             return level_instances
         return None
 
+    def level_exists(self, level_dir):
+        return os.path.exists(level_dir)
+
+    def level_has_changed(self, level_dir, level_url):
+        try:
+            with open('{0}/VERSION'.format(level_dir)) as fh:
+                current_url = fh.read()
+                return current_url != level_url
+        except:
+            pass
+        return True
+
     def prepare_level(self, level_instance):
         """
-        I get and prepare the level.
+        I get and prepare the level, I return true if the level is to be ran.
         """
         level = level_instance['level']
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
-        if os.path.exists(level_dir):
-            cmd = 'git pull'.format(level_dir)
-            cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
-            ret = subprocess.call(cmd, shell=True, cwd=cwd)
-        else:
-            repo = 'git://github.com/pathwar/level-{0}'.format(level['name'])
-            cmd = 'git clone {0} {1}'.format(repo, level_dir)
-            ret = subprocess.call(cmd, shell=True)
-        return os.path.exists(os.path.join(level_dir, 'fig.yml'))
+        level_url = level['url']
+
+        log.info('checking level {0}'.format(level['name']))
+        if not level_instance['active'] or not level['url']:
+            return False
+        if level_exists(level_dir) and not level_has_changed(level_dir, level_url):
+            return False
+
+        log.info('preparing level {0}'.format(level['name']))
+
+        tmp = tempfile.mkdtemp()
+        try:
+            log.info('setting version for level {0}'.format(level['name']))
+            with open('{0}/VERSION'.format(tmp), 'w+') as fh:
+                fh.write(level_url)
+
+            log.info('downloading package for level {0}'.format(level['name']))
+            cmd = 's3cmd get {0} {1}/package.tar'.format(level['url'], tmp)
+            subprocess.call(cmd, shell=True)
+
+            log.info('extracting level {0}'.format(level['name']))
+            cmd = 'tar -xf {0}/package.tar -C {0}'.format(tmp)
+            subprocess.call(cmd, shell=True)
+
+            log.info('moving level {0}'.format(level['name']))
+            cmd = 'mv {0} {1}'.format(tmp, level_dir)
+            subprocess.call(cmd, shell=True)
+
+            log.info('building level {0}'.format(level['name']))
+            cmd = 'docker-compose -f {0}/docker-compose.yml build'.format(level_dir)
+            subprocess.call(cmd, shell=True)
+            return True
+        except:
+            log.wanring('failed to prepare level {0}'.format(level['name']))
+            shutil.rmtree(tmp)
+            return False
 
     def inspect_level(self, level_instance):
         """
@@ -130,9 +174,10 @@ class Hypervisor:
         if level_instances:
             for level_instance in level_instances:
                 if self.prepare_level(level_instance):
-                    self.run_level(level_instance)
-                    data = self.inspect_level(level_instance)
-                    self.notify_api(level_instance, data)
+                    pass
+#                    self.run_level(level_instance)
+#                    data = self.inspect_level(level_instance)
+#                    self.notify_api(level_instance, data)
 
 
 if __name__ == '__main__':
