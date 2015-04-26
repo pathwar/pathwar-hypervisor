@@ -4,9 +4,8 @@ FROM ubuntu:trusty
 # Install dependencies
 RUN apt-get update \
  && apt-get upgrade -yq \
- && apt-get install -yq python-pip python2.7 git sudo curl s3cmd \
+ && apt-get install -yq python-pip python2.7 git sudo curl s3cmd docker.io \
  && apt-get clean
-RUN curl -sSL https://get.docker.com/ubuntu/ | sudo sh
 
 # FIXME
 ADD .s3cfg /root/
