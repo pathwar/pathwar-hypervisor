@@ -3,6 +3,8 @@ hypervisor:
   volumes:
   - .:/usr/src/app/
   - /var/run/docker.sock:/var/run/docker.sock
+  - /var/lib/docker:/var/lib/docker
+  - /tmp:/tmp
   environment:
   - HOSTNAME=195.154.233.249
   - API_ENDPOINT=http://root-token:@62.210.92.219:7500

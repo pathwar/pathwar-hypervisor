@@ -131,20 +131,14 @@ class Hypervisor:
                             tarball = '{0}/{1}.tar'.format(level_dir, m.group(1))
                             logging.info('converting export {0} to image {1}'\
                                          .format(tarball, conf['image']))
-
-                            cmd = 'docker rmi -f {0}'.format(conf['image'])
-                            subprocess.call(cmd, shell=True)
-
                             cmd = 'cat {0} | docker import - {1}'.format(tarball, conf['image'])
                             subprocess.check_call(cmd, shell=True)
+            logging.info('level {0} prepared'.format(level['name']))
             return True
         except Exception as error:
             logging.warning('failed to prepare level {0}: {1}'.format(
                 level['name'], error))
-
-            # FIXME
             sys.exit(1)
-
             shutil.rmtree(tmp)
             return False
 
@@ -157,9 +151,11 @@ class Hypervisor:
         cmd = 'docker-compose ps -q'
         passphrases = []
         ports = []
+        time.sleep(1)
         for container in subprocess.check_output(cmd, shell=True, cwd=cwd).splitlines():
+            logging.info('generating passphrase for level {0}'.format(level['name']))
             # passphrases
-            cmd = "docker exec {0} /bin/sh -c 'for file in /pathwar/passphrases/*; do echo -n \"$(basename $file) \"  ; cat $file; done'".format(container)
+            cmd = "docker exec {0} /bin/sh -c \'for file in /pathwar/passphrases/*; do echo -n \"$(basename $file)\"; cat $file; done\'".format(container)
             for line in subprocess.check_output(cmd, shell=True).splitlines():
                 chunks = line.split()
                 if len(chunks) == 2:
@@ -178,9 +174,15 @@ class Hypervisor:
         I start the level.
         """
         level = level_instance['level']
-        cmd = 'docker-compose up -d'
+        logging.info('running level {0}'.format(level['name']))
+
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
-        subprocess.call(cmd, shell=True, cwd=cwd)
+        cmd = 'docker-compose stop'
+        subprocess.check_call(cmd, shell=True, cwd=cwd)
+        cmd = 'docker-compose rm -f'
+        subprocess.check_call(cmd, shell=True, cwd=cwd)
+        cmd = 'docker-compose up -d'
+        subprocess.check_call(cmd, shell=True, cwd=cwd)
 
     def destroy_level(self, level_instance):
         """
@@ -203,6 +205,7 @@ class Hypervisor:
         """
 
         level = level_instance['level']
+        logging.info('notifying API that level {0} is ready'.format(level['name']))
         patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level_instance['_id'])
 
         response = dict()
