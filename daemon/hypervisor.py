@@ -13,7 +13,12 @@ import time
 
 # configured via docker-compose.yml
 API_ENDPOINT = os.environ['API_ENDPOINT']
-HOSTNAME= os.environ['HOSTNAME']
+HOSTNAME = os.environ['HOSTNAME']
+
+# FIXME: upgrade Dockerfile to have a s3cmd that support these params
+S3CMD_ACCESS_KEY = os.environ['S3CMD_ACCESS_KEY']
+S3CMD_SECRET_KEY = os.environ['S3CMD_SECRET_KEY']
+S3CMD_HOST = os.environ['S3CMD_HOST']
 
 # misc
 REPO_DIR = 'levels'
@@ -62,6 +67,7 @@ class Hypervisor:
             with open('{0}/REDUMP'.format(level_dir)) as fh:
                 next_redump = int(fh.read())
                 return int(time.time()) >= next_redump
+            # FIXME ensure level is UP
         except:
             pass
         return True
@@ -77,7 +83,6 @@ class Hypervisor:
         level = level_instance['level']
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
 
-        logging.info('checking level {0}'.format(level['name']))
         if not level_instance['active'] or not 'url' in level:
             return False
         if self.level_exists(level_dir) and not\
@@ -95,8 +100,9 @@ class Hypervisor:
 
             logging.info('setting next redump timestamp {0}'.format(
                 level['name']))
+
             with open('{0}/REDUMP'.format(tmp), 'w+') as fh:
-                next_redump_at = int(time.time() + level['redump'])
+                next_redump_at = int(time.time() + level['defaults']['redump'])
                 fh.write('{0}'.format(next_redump_at))
 
             logging.info('downloading package for level {0}'.format(
@@ -112,16 +118,13 @@ class Hypervisor:
             cmd = 'mv {0} {1}'.format(tmp, level_dir)
             subprocess.call(cmd, shell=True)
 
-            # FIXME: create image from export
-
             logging.info('building level {0}'.format(level['name']))
-            cmd = 'docker-compose -f {0}/docker-compose.yml build'.format(
-                level_dir)
-            subprocess.call(cmd, shell=True)
+            cmd = 'docker-compose build'
+            subprocess.call(cmd, shell=True, cwd=level_dir)
             return True
-        except:
-            logging.warning('failed to prepare level {0}'.format(
-                level['name']))
+        except Exception as error:
+            logging.warning('failed to prepare level {0}: {1}'.format(
+                level['name'], error))
             shutil.rmtree(tmp)
             return False
 
@@ -164,13 +167,15 @@ class Hypervisor:
         I destroy the level.
         """
         level = level_instance['level']
-        cmd = 'docker-compose stop'
         cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
+
+        cmd = 'docker-compose stop'
         subprocess.call(cmd, shell=True, cwd=cwd)
 
         cmd = 'docker-compose rm -f'
-        cwd = '{0}/{1}'.format(REPO_DIR, level['name'])
         subprocess.call(cmd, shell=True, cwd=cwd)
+
+        shutil.rmtree(cwd)
 
     def notify_api(self, level_instance, data):
         """
