@@ -5,7 +5,7 @@ hypervisor:
   - /var/run/docker.sock:/var/run/docker.sock
   environment:
   - HOSTNAME=195.154.233.249
-  - API_ENDPOINT=http://root-token:@62.210.75.196:5000
+  - API_ENDPOINT=http://root-token:@62.210.92.219:7500
   - S3CMD_ACCESS_KEY=
   - S3CMD_SECRET_KEY=
   - S3CMD_HOST=
