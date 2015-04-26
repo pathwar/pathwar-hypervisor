@@ -2,15 +2,16 @@
 
 import requests
 import json
-import log
+import logging
 import tempfile
 import subprocess
 import os.path
 import shutil
+import time
 
 
 # configured via docker-compose.yml
-API_ENDPOINT = os.envron['API_ENDPOINT']
+API_ENDPOINT = os.environ['API_ENDPOINT']
 HOSTNAME= os.environ['HOSTNAME']
 
 # misc
@@ -60,6 +61,10 @@ class Hypervisor:
             pass
         return True
 
+    def get_next_level_redump_at(self, level_dir):
+        with open('{0}/REDUMP'.format(level_dir)) as fh:
+            return int(fh.read())
+
     def prepare_level(self, level_instance):
         """
         I get and prepare the level, I return true if the level is to be ran.
@@ -68,38 +73,43 @@ class Hypervisor:
         level_dir = '{0}/{1}'.format(REPO_DIR, level['name'])
         level_url = level['url']
 
-        log.info('checking level {0}'.format(level['name']))
+        logging.info('checking level {0}'.format(level['name']))
         if not level_instance['active'] or not level['url']:
             return False
         if level_exists(level_dir) and not level_has_changed(level_dir, level_url):
             return False
 
-        log.info('preparing level {0}'.format(level['name']))
+        logging.info('preparing level {0}'.format(level['name']))
 
         tmp = tempfile.mkdtemp()
         try:
-            log.info('setting version for level {0}'.format(level['name']))
+            logging.info('setting version for level {0}'.format(level['name']))
             with open('{0}/VERSION'.format(tmp), 'w+') as fh:
                 fh.write(level_url)
 
-            log.info('downloading package for level {0}'.format(level['name']))
+            logging.info('setting next redump timestamp {0}'.format(level['name']))
+            with open('{0}/REDUMP'.format(tmp), 'w+') as fh:
+                next_redump_at = int(time.time() + level['redump'])
+                fh.write('{0}'.format(next_redump_at))
+
+            logging.info('downloading package for level {0}'.format(level['name']))
             cmd = 's3cmd get {0} {1}/package.tar'.format(level['url'], tmp)
             subprocess.call(cmd, shell=True)
 
-            log.info('extracting level {0}'.format(level['name']))
+            logging.info('extracting level {0}'.format(level['name']))
             cmd = 'tar -xf {0}/package.tar -C {0}'.format(tmp)
             subprocess.call(cmd, shell=True)
 
-            log.info('moving level {0}'.format(level['name']))
+            logging.info('moving level {0}'.format(level['name']))
             cmd = 'mv {0} {1}'.format(tmp, level_dir)
             subprocess.call(cmd, shell=True)
 
-            log.info('building level {0}'.format(level['name']))
+            logging.info('building level {0}'.format(level['name']))
             cmd = 'docker-compose -f {0}/docker-compose.yml build'.format(level_dir)
             subprocess.call(cmd, shell=True)
             return True
         except:
-            log.wanring('failed to prepare level {0}'.format(level['name']))
+            logging.wanring('failed to prepare level {0}'.format(level['name']))
             shutil.rmtree(tmp)
             return False
 
@@ -170,16 +180,20 @@ class Hypervisor:
         """
         I'm the main.
         """
-        level_instances = self.get_level_instances()
-        if level_instances:
-            for level_instance in level_instances:
-                if self.prepare_level(level_instance):
-                    pass
+        while True:
+            logging.info('waiting for more work')
+            level_instances = self.get_level_instances()
+            if level_instances:
+                for level_instance in level_instances:
+                    if self.prepare_level(level_instance):
+                        pass
+            time.sleep(5)
 #                    self.run_level(level_instance)
 #                    data = self.inspect_level(level_instance)
 #                    self.notify_api(level_instance, data)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     h = Hypervisor()
     h.go()
