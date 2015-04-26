@@ -52,11 +52,15 @@ class Hypervisor:
     def level_exists(self, level_dir):
         return os.path.exists(level_dir)
 
-    def level_has_changed(self, level_dir, level_url):
+    def level_needs_redump(self, level_dir, level_url):
         try:
             with open('{0}/VERSION'.format(level_dir)) as fh:
                 current_url = fh.read()
-                return current_url != level_url
+                if current_url != level_url:
+                    return True
+            with open('{0}/REDUMP'.format(level_dir)) as fh:
+                next_redump = int(fh.read())
+                return int(time.time()) >= next_redump
         except:
             pass
         return True
@@ -76,7 +80,7 @@ class Hypervisor:
         logging.info('checking level {0}'.format(level['name']))
         if not level_instance['active'] or not level['url']:
             return False
-        if level_exists(level_dir) and not level_has_changed(level_dir, level_url):
+        if level_exists(level_dir) and not level_needs_redump(level_dir, level_url):
             return False
 
         logging.info('preparing level {0}'.format(level['name']))
