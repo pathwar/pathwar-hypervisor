@@ -7,7 +7,7 @@ import yaml
 
 
 class Level(object):
-    def __init__(id=None, passphrases=None, address=None, dumped_at=None, source=None):
+    def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, source=None):
         self.id = id
         self.passphrases = passphrases
         self.address = address
@@ -22,12 +22,17 @@ class DockerDriver(object):
         self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
         self.scp = 'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
 
+    def _get_compose(self, level_id):
+        """ I return the docker-compose.yml file of a level. """
+        cmd = '{0} cat levels/{1}/docker-compose.yml'.format(self.ssh, level_id)
+        return yaml.load(subprocess.check_output(cmd, shell=True))
+
     def get_running_level_ids(self):
         """ I return the list of IDs of running levels on the host. """
-        uuids = []
+        uuids = set()
         cmd = '{0} "docker ps --no-trunc"'.format(self.ssh)
-        for line in subprocess.check_output(cmd, shell=True).split('\n'):
-            m = re.match('^.*(a-zA-Z0-9]{32})_([^_]+)_([^_]+)$', line)
+        for line in subprocess.check_output(cmd, shell=True).splitlines():
+            m = re.match('^.*([a-z0-9]{32})_.*_.*$', line)
             if m:
                 uuid_merged = m.group(1)
                 uuid = '{0}-{1}-{2}-{3}-{4}'.format(uuid_merged[:8],
@@ -35,7 +40,7 @@ class DockerDriver(object):
                                                     uuid_merged[12:16],
                                                     uuid_merged[16:20],
                                                     uuid_merged[20:32])
-                uuids.append(uuid)
+                uuids.add(uuid)
         return uuids
 
     def destroy_level(self, level_id):
@@ -66,8 +71,7 @@ class DockerDriver(object):
 
         # preparing level image
         logging.info('preparing level image')
-        cmd = '{0} cat levels/{1}/docker-compose.yml'.format(self.ssh, level_id)
-        compose = yaml.load(subprocess.check_output(cmd, shell=True))
+        compose = self._get_compose(level_id)
         for service, conf in compose.iteritems():
             if 'image' in conf:
                 m = re.match('image\-for\-(.*)', conf['image'])
@@ -96,6 +100,28 @@ class DockerDriver(object):
         """ I inspect a level. """
         level = Level()
         level.id = level_id
+
+        # fetch passphrases
+        level.passphrases = []
+        logging.info('fetching passphrases for {0} on {1}'.format(level_id, self.host))
+        cwd = 'levels/{0}'.format(level_id)
+        cmd = '{0} "cd {1} ; docker-compose ps -q"'.format(self.ssh, cwd)
+        for docker_uuid in subprocess.check_output(cmd, shell=True).splitlines():
+            # here, it is fine to fail, not all containers have passphrases.
+            # please, be careful with this line, this is really tricky (there
+            # are several levels of inhibition mixing together).
+            try:
+                cmd = '{0} "docker exec {1} bash -c \'for file in /pathwar/passphrases/*; do echo -n \\"\\$(basename \\$file) \\"; cat \\$file; done\'"'.format(self.ssh, docker_uuid)
+                for line in subprocess.check_output(cmd, shell=True).splitlines():
+                    chunks = line.split()
+                    if len(chunks) == 2:
+                        logging.info('found passphrase {0} for {1} on {2}'.format(chunks[0], level_id, self.host))
+                        level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
+            except:
+                pass
+
+        sys.exit(1)
+
         # FIXME
         # - fetch passphrases
         # - fetch addresses
