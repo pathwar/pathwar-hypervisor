@@ -35,13 +35,13 @@ class Hypervisor(object):
                     logging.debug('ignored level {0}'.format(level_id))
                     continue
 
-                level = self.xpool.get_level(level_id)
+                level = self.pool.get_level(level_id)
 
                 # create level if not exist
                 if not level:
                     logging.info('creating level {0}'.format(level_id))
-                    level = self.pool.create_level(api_level['url'])
-                    self.api_update_level_instance(level)
+                    level = self.pool.create_level(level_id, api_level['url'])
+                    self.api_update_level_instance(level_id, level)
                     continue
 
                 # refresh/redump level if needed
@@ -51,15 +51,19 @@ class Hypervisor(object):
                 level_need_redump = level_next_redump < int(time.time())
                 if level_changed or level_need_redump:
                     logging.info('redumping level {0}'.format(level_id))
-                    self.destroy_level(level.id)
-                    level = self.pool.create_level(api_level['url'])
+                    self.destroy_level(level_id)
+                    self.pool.create_level(level_idapi_level['url'])
+                    level = self.pool.get_level(level_id)
                     self.api_update_level_instance(level)
                     continue
 
             time.sleep(REFRESH_RATE)
 
     def api_update_level_instance(self, level):
-        pass
+        """ I update the state of a level on the API. """
+        # FIXME
+        # if level is none, mark the level as down
+        # otherwise, patch all fields
 
     def api_fetch_level_instances(self):
         """ I fetch level instances from the API. """
