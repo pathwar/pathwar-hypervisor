@@ -25,7 +25,7 @@ class DockerDriver(object):
     def __init__(self, host=None):
         self.host = host
         if '@' in host:
-            self.ip = host.split('@')[0]
+            self.ip = host.split('@')[1]
         else:
             self.ip = host
         self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
@@ -132,6 +132,7 @@ class DockerDriver(object):
         cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
         subprocess.check_call(cmd, shell=True)
 
+        return True
 
     def inspect_level(self, level_id):
         """ I inspect a level. """
@@ -218,6 +219,6 @@ class DockerPool(object):
         server = self._pick_server()
         if server:
             if server.create_level(level_id, tarball):
-                level = server.inspect(level_id)
+                level = server.inspect_level(level_id)
                 self.levels[level_id] = (level, server)
                 return level
