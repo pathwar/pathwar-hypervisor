@@ -1,18 +1,24 @@
+import calendar
+import dateutil.parser
 import logging
+import os
 import random
 import re
 import subprocess
 import sys
+import time
 import yaml
 
 
+LEVEL_ENDPOINT = os.environ['LEVEL_ENDPOINT']
+
 class Level(object):
-    def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, source=None):
+    def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None):
         self.id = id
         self.passphrases = passphrases
         self.address = address
         self.dumped_at = dumped_at
-        self.source = source
+        self.version = version
 
 
 class DockerDriver(object):
@@ -101,16 +107,36 @@ class DockerDriver(object):
         level = Level()
         level.id = level_id
 
-        # fetch passphrases
+        # fetch passphrases, uptime and version
+        level.dumped_at = None
+        level.version = None
         level.passphrases = []
         logging.info('fetching passphrases for {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose ps -q"'.format(self.ssh, cwd)
         for docker_uuid in subprocess.check_output(cmd, shell=True).splitlines():
-            # here, it is fine to fail, not all containers have passphrases.
-            # please, be careful with this line, this is really tricky (there
-            # are several levels of inhibition mixing together).
+            if not level.dumped_at:
+                cmd = '{0} "docker inspect -f {{{{.State.StartedAt}}}} {1}"'.format(self.ssh, docker_uuid)
+                uptime = subprocess.check_output(cmd, shell=True).strip()
+                timestamp = calendar.timegm(dateutil.parser.parse(uptime).utctimetuple())
+                logging.info('found dumped_at {0} for {1} on {2}'.format(timestamp, level_id, self.host))
+                level.dumped_at = float(timestamp)
+
+            if not level.version:
+                try:
+                    # here, it is fine to fail
+                    cmd = '{0} "docker exec {1} bash -c \'grep version /pathwar/level.yml | awk \\"// {{ print \\$2; }}\\"\'"'.format(self.ssh, docker_uuid)
+                    version = subprocess.check_output(cmd, shell=True).strip()
+                    if len(version):
+                        logging.info('found version {0} for {1} on {2}'.format(version, level_id, self.host))
+                        level.version = version
+                except:
+                    pass
+
             try:
+                # here, it is fine to fail, not all containers have passphrases.
+                # please, be careful with this line, this is really tricky (there
+                # are several levels of inhibition mixing together).
                 cmd = '{0} "docker exec {1} bash -c \'for file in /pathwar/passphrases/*; do echo -n \\"\\$(basename \\$file) \\"; cat \\$file; done\'"'.format(self.ssh, docker_uuid)
                 for line in subprocess.check_output(cmd, shell=True).splitlines():
                     chunks = line.split()
@@ -120,13 +146,9 @@ class DockerDriver(object):
             except:
                 pass
 
-        sys.exit(1)
+        # build address
+        level.address = LEVEL_ENDPOINT
 
-        # FIXME
-        # - fetch passphrases
-        # - fetch addresses
-        # - fetch dumped_at
-        # - fetch source
         return level
 
 
