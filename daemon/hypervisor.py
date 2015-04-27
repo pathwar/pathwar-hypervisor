@@ -4,6 +4,7 @@ import requests
 import json
 import logging
 import tempfile
+import traceback
 import subprocess
 import os.path
 import re
@@ -64,7 +65,8 @@ class Hypervisor(object):
                 try:
                     self.manage_level(api_level_instance)
                 except Exception as e:
-                    logging.warning('had a problem while managing level {0}: {1}', api_level_instance['_id'], e)
+                    logging.warning('had a problem while managing level {0}: {1}'.format(api_level_instance['_id'], str(e)))
+                    traceback.print_exc()
             time.sleep(REFRESH_RATE)
 
     def api_update_level_instance(self, api_level_instance, level):

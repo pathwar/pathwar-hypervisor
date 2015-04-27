@@ -6,6 +6,7 @@ import random
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import yaml
 
@@ -34,6 +35,15 @@ class DockerDriver(object):
         """ I return the docker-compose.yml file of a level. """
         cmd = '{0} cat levels/{1}/docker-compose.yml'.format(self.ssh, level_id)
         return yaml.load(subprocess.check_output(cmd, shell=True))
+
+    def _write_compose(self, level_id, compose):
+        """ I write back the docker-compose.yml file of a level. """
+        fd, tmpfile = tempfile.mkstemp()
+        os.write(fd, yaml.dump(compose, default_flow_style=False))
+        os.close(fd)
+        cmd = '{0} {1} {2}:levels/{3}/docker-compose.yml'.format(self.scp, tmpfile, self.host, level_id)
+        subprocess.check_call(cmd, shell=True)
+        os.remove(tmpfile)
 
     def get_running_level_ids(self):
         """ I return the list of IDs of running levels on the host. """
@@ -72,8 +82,6 @@ class DockerDriver(object):
         cmd = '{0} "rm -rf {1}"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
-        # FIXME: refresh nginx
-
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
         # locally download the tarball
@@ -94,6 +102,7 @@ class DockerDriver(object):
         # preparing level image
         logging.info('preparing level image')
         compose = self._get_compose(level_id)
+        modified = {}
         for service, conf in compose.iteritems():
             if 'image' in conf:
                 m = re.match('image\-for\-(.*)', conf['image'])
@@ -103,6 +112,13 @@ class DockerDriver(object):
                     cwd = 'levels/{0}'.format(level_id)
                     cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
                     subprocess.check_call(cmd, shell=True)
+                    # patching docker-compose so it contains a VIRTUAL_HOST entry
+                    # (required by nginx-proxy)
+                    if 'environment' not in conf:
+                        conf['environment'] = []
+                    conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
+            modified[service] = conf
+        self._write_compose(level_id, modified)
 
         # building level
         logging.info('building level {0} on {1}'.format(level_id, self.host))
@@ -116,7 +132,6 @@ class DockerDriver(object):
         cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
         subprocess.check_call(cmd, shell=True)
 
-        # FIXME: refresh nginx
 
     def inspect_level(self, level_id):
         """ I inspect a level. """
