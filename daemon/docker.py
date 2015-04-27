@@ -51,12 +51,26 @@ class DockerDriver(object):
 
     def destroy_level(self, level_id):
         """ I destroy a level by ID. """
-        # FIXME
-        # - on the server:
-        #   - docker-compose stop
-        #   - docker-compose rm
-        #   - rmdir /levels/{id}
-        # - refresh nginx
+
+        # stopping level
+        logging.info('stopping level {0} on {1}'.format(level_id, self.host))
+        cwd = 'levels/{0}'.format(level_id)
+        cmd = '{0} "cd {1} ; docker-compose stop"'.format(self.ssh, cwd)
+        subprocess.call(cmd, shell=True)
+
+        # removing level
+        logging.info('removing level {0} on {1}'.format(level_id, self.host))
+        cwd = 'levels/{0}'.format(level_id)
+        cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
+        subprocess.call(cmd, shell=True)
+
+        # cleaning environment
+        logging.info('cleaning level {0} on {1}'.format(level_id, self.host))
+        cwd = 'levels/{0}'.format(level_id)
+        cmd = '{0} "rm -rf {1}"'.format(self.ssh, cwd)
+        subprocess.call(cmd, shell=True)
+
+        # FIXME: refresh nginx
 
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
