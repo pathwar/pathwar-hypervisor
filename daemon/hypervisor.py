@@ -26,7 +26,7 @@ class Hypervisor(object):
 
     def loop(self):
         while True:
-            logging.debug('wakup Neo')
+            logging.debug('wake-up Neo')
 
             for api_level_instance in self.api_fetch_level_instances():
                 level_id = api_level_instance['_id']
@@ -68,12 +68,12 @@ class Hypervisor(object):
         patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level_id)
         response = dict()
 
-        # extract HTTP port from port mapping
+        if level is None:
+            return
+
+        # patch level URL
         response['urls'] = []
-        for mapping in data['Ports']:
-            if '80/tcp' in mapping:
-                host_port = mapping['80/tcp'][0]['HostPort']
-                response['urls'].append({'name': 'http', 'url': 'http://{0}/'.format(level.address)})
+        response['urls'].append({'name': 'http', 'url': 'http://{0}/'.format(level.address)})
 
         # extract passphrases
         response['passphrases'] = data['Passphrases']
@@ -96,6 +96,7 @@ class Hypervisor(object):
                 for item in content['_items']:
                     level_instances.append(item)
             return level_instances
+        return []
 
 
 if __name__ == '__main__':

@@ -20,6 +20,7 @@ class DockerDriver(object):
     def get_running_level_ids(self):
         """ I return the list of IDs of running levels on the host. """
         # FIXME
+        return []
 
     def destroy_level(self, level_id):
         """ I destroy a level by ID. """
@@ -61,7 +62,7 @@ class DockerPool(object):
         # init pool
         self.pool = []
         for server_ip in server_ips:
-            self.pool.append(DockerDriver(ip=server))
+            self.pool.append(DockerDriver(ip=server_ip))
         # init levels
         self.levels = {}
         for server in self.pool:

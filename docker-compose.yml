@@ -3,6 +3,6 @@ hypervisor:
   volumes:
   - .:/usr/src/app/
   environment:
-  - API_ENDPOINT=http://root-token:@62.210.92.219:7500
+  - API_ENDPOINT=http://root-token:@techno.sbrk.org:5000
   - REFRESH_RATE=500
   - DOCKER_POOL=mxs@localhost
