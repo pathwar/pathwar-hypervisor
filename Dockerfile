@@ -7,9 +7,6 @@ RUN apt-get update \
  && apt-get install -yq python-pip python2.7 git sudo curl s3cmd docker.io \
  && apt-get clean
 
-# FIXME
-ADD .s3cfg /root/
-
 # Prepare hypervisor workspace
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app

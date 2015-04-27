@@ -3,3 +3,4 @@ docker-compose
 argparse
 requests
 wsgiref
+pyyaml

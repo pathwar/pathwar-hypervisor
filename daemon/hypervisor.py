@@ -12,13 +12,13 @@ import sys
 import time
 import yaml
 
-from .docker import DockerPool
+from docker import DockerPool
 
 
 # configured via docker-compose.yml
 API_ENDPOINT = os.environ['API_ENDPOINT']
-DOCKER_POOL = os.environ['DOCKER_POOL']
-REFRESH_RATE = 500
+DOCKER_POOL = os.environ['DOCKER_POOL'].split(',')
+REFRESH_RATE = int(os.environ['REFRESH_RATE'])
 
 class Hypervisor(object):
     def __init__(self):
@@ -26,6 +26,8 @@ class Hypervisor(object):
 
     def loop(self):
         while True:
+            logging.debug('wakup Neo')
+
             for api_level_instance in self.api_fetch_level_instances():
                 level_id = api_level_instance['_id']
                 api_level = api_level_instance['level']
@@ -41,7 +43,7 @@ class Hypervisor(object):
                 if not level:
                     logging.info('creating level {0}'.format(level_id))
                     level = self.pool.create_level(level_id, api_level['url'])
-                    self.api_update_level_instance(level_id, level)
+                    self.api_update_level_instance(api_level, level)
                     continue
 
                 # refresh/redump level if needed
@@ -54,16 +56,34 @@ class Hypervisor(object):
                     self.destroy_level(level_id)
                     self.pool.create_level(level_idapi_level['url'])
                     level = self.pool.get_level(level_id)
-                    self.api_update_level_instance(level)
+                    self.api_update_level_instance(api_level, level)
                     continue
 
             time.sleep(REFRESH_RATE)
 
-    def api_update_level_instance(self, level):
+    def api_update_level_instance(self, api_level_instance, level):
         """ I update the state of a level on the API. """
-        # FIXME
-        # if level is none, mark the level as down
-        # otherwise, patch all fields
+        level_id = api_level_instance['_id']
+        logging.info('patching API for {0}'.format(level_id))
+        patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level_id)
+        response = dict()
+
+        # extract HTTP port from port mapping
+        response['urls'] = []
+        for mapping in data['Ports']:
+            if '80/tcp' in mapping:
+                host_port = mapping['80/tcp'][0]['HostPort']
+                response['urls'].append({'name': 'http', 'url': 'http://{0}/'.format(level.address)})
+
+        # extract passphrases
+        response['passphrases'] = data['Passphrases']
+
+        headers = {
+            'If-Match': level_instance['_etag'],
+            'Content-Type': 'application/json',
+        }
+
+        r = requests.patch(patch_url, data=json.dumps(response), headers=headers)
 
     def api_fetch_level_instances(self):
         """ I fetch level instances from the API. """
@@ -77,8 +97,11 @@ class Hypervisor(object):
                     level_instances.append(item)
             return level_instances
 
-# misc
-# REPO_DIR = 'levels'
+
+if __name__ == '__main__':
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    h = Hypervisor()
+    h.loop()
 
 #class Hypervisor(object):
 #

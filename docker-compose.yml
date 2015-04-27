@@ -4,6 +4,5 @@ hypervisor:
   - .:/usr/src/app/
   environment:
   - API_ENDPOINT=http://root-token:@62.210.92.219:7500
-  - DOCKER_POOL:
-    - localhost
-    - localhost
+  - REFRESH_RATE=500
+  - DOCKER_POOL=mxs@localhost

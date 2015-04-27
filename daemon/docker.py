@@ -28,6 +28,7 @@ class DockerDriver(object):
         #   - docker-compose stop
         #   - docker-compose rm
         #   - rmdir /levels/{id}
+        # - refresh nginx
 
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
@@ -40,6 +41,7 @@ class DockerDriver(object):
         #   - export
         #   - docker-compose up
         # - remove tarball
+        # - refresh nginx
 
     def inspect_level(self, level_id):
         """ I inspect a level. """
@@ -83,7 +85,7 @@ class DockerPool(object):
             level, _ = self.levels[level_id]
             return level
 
-    def create_level(self, level_id tarball):
+    def create_level(self, level_id, tarball):
         """ I randomly create a level on a Docker server. """
         server = self._pick_server()
         if server:
