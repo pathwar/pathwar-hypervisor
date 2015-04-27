@@ -1,6 +1,8 @@
 import logging
 import random
+import re
 import subprocess
+import sys
 
 
 class Level(object):
@@ -14,13 +16,25 @@ class Level(object):
 
 class DockerDriver(object):
     """ I manage a Docker server. """
-    def __init__(self, ip=None):
-        self.ip = ip
+    def __init__(self, host=None):
+        self.host = host
+        self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
 
     def get_running_level_ids(self):
         """ I return the list of IDs of running levels on the host. """
-        # FIXME
-        return []
+        uuids = []
+        cmd = '{0} "docker ps --no-trunc"'.format(self.ssh)
+        for line in subprocess.check_output(cmd, shell=True).split('\n'):
+            m = re.match('^.*(a-zA-Z0-9]{32})_([^_]+)_([^_]+)$', line)
+            if m:
+                uuid_merged = m.group(1)
+                uuid = '{0}-{1}-{2}-{3}-{4}'.format(uuid_merged[:8],
+                                                    uuid_merged[8:12],
+                                                    uuid_merged[12:16],
+                                                    uuid_merged[16:20],
+                                                    uuid_merged[20:32])
+                uuids.append(uuid)
+        return uuids
 
     def destroy_level(self, level_id):
         """ I destroy a level by ID. """
@@ -62,7 +76,7 @@ class DockerPool(object):
         # init pool
         self.pool = []
         for server_ip in server_ips:
-            self.pool.append(DockerDriver(ip=server_ip))
+            self.pool.append(DockerDriver(host=server_ip))
         # init levels
         self.levels = {}
         for server in self.pool:

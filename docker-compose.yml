@@ -2,7 +2,8 @@ hypervisor:
   build: .
   volumes:
   - .:/usr/src/app/
+  - /home/mxs/.ssh/id_rsa:/root/.ssh/id_rsa
   environment:
   - API_ENDPOINT=http://root-token:@techno.sbrk.org:5000
   - REFRESH_RATE=500
-  - DOCKER_POOL=mxs@localhost
+  - DOCKER_POOL=mxs@62.210.92.219
