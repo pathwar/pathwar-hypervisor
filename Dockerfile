@@ -4,7 +4,7 @@ FROM ubuntu:trusty
 # Install dependencies
 RUN apt-get update \
  && apt-get upgrade -yq \
- && apt-get install -yq python-pip python2.7 git sudo curl s3cmd docker.io \
+ && apt-get install -yq python-pip python2.7 git sudo wget docker.io \
  && apt-get clean
 
 # Prepare hypervisor workspace

@@ -3,6 +3,7 @@ import random
 import re
 import subprocess
 import sys
+import yaml
 
 
 class Level(object):
@@ -19,6 +20,7 @@ class DockerDriver(object):
     def __init__(self, host=None):
         self.host = host
         self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
+        self.scp = 'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
 
     def get_running_level_ids(self):
         """ I return the list of IDs of running levels on the host. """
@@ -47,16 +49,48 @@ class DockerDriver(object):
 
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
-        # FIXME
-        # - locally download tarball
-        # - upload it to the server
-        # - on the server:
-        #   - mkdir /levels/{id}
-        #   - extract
-        #   - export
-        #   - docker-compose up
-        # - remove tarball
-        # - refresh nginx
+        # locally download the tarball
+        logging.info('downloading {0}'.format(tarball))
+        cmd = 'wget -q {0} -O /tmp/hypervisor-temp-level.tar'.format(tarball)
+        subprocess.check_call(cmd, shell=True)
+
+        # uploading it to the server
+        logging.info('uploading to {0}'.format(self.host))
+        cmd = '{0} /tmp/hypervisor-temp-level.tar {1}:/tmp/hypervisor-level-to-build.tar'.format(self.scp, self.host)
+        subprocess.check_call(cmd, shell=True)
+
+        # extract level
+        logging.info('extracting level on {0}'.format(self.host))
+        cmd = '{0} "mkdir -p levels/{1} ; tar -xf /tmp/hypervisor-level-to-build.tar -C levels/{1} ; rm -f /tmp/hypervisor-level-to-build.tar"'.format(self.ssh, level_id)
+        subprocess.check_call(cmd, shell=True)
+
+        # preparing level image
+        logging.info('preparing level image')
+        cmd = '{0} cat levels/{1}/docker-compose.yml'.format(self.ssh, level_id)
+        compose = yaml.load(subprocess.check_output(cmd, shell=True))
+        for service, conf in compose.iteritems():
+            if 'image' in conf:
+                m = re.match('image\-for\-(.*)', conf['image'])
+                if m:
+                    tarball = '{0}.tar'.format(m.group(1))
+                    logging.info('importing {0}'.format(conf['image']))
+                    cwd = 'levels/{0}'.format(level_id)
+                    cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
+                    subprocess.check_call(cmd, shell=True)
+
+        # building level
+        logging.info('building level {0} on {1}'.format(level_id, self.host))
+        cwd = 'levels/{0}'.format(level_id)
+        cmd = '{0} "cd {1} ; docker-compose build"'.format(self.ssh, cwd)
+        subprocess.check_call(cmd, shell=True)
+
+        # running level
+        logging.info('running level {0} on {1}'.format(level_id, self.host))
+        cwd = 'levels/{0}'.format(level_id)
+        cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
+        subprocess.check_call(cmd, shell=True)
+
+        # FIXME: refresh nginx
 
     def inspect_level(self, level_id):
         """ I inspect a level. """
