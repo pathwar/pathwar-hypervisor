@@ -24,41 +24,47 @@ class Hypervisor(object):
     def __init__(self):
         self.pool = DockerPool(DOCKER_POOL)
 
+    def manage_level(self, api_level_instance):
+        """ I manage a level instance, create it, redump if needed, ... """
+        level_id = api_level_instance['_id']
+        api_level = api_level_instance['level']
+
+        # ignore level if incomplete
+        if 'url' not in api_level or not api_level_instance['active']:
+            logging.debug('ignored level {0}'.format(level_id))
+            return
+
+        level = self.pool.get_level(level_id)
+
+        # create level if not exist
+        if not level:
+            logging.info('creating level {0}'.format(level_id))
+            level = self.pool.create_level(level_id, api_level['url'])
+            self.api_update_level_instance(api_level, level)
+            return
+
+        # refresh/redump level if needed
+        level_changed = level.version != api_level['version']
+        level_redump = api_level['defaults']['redump']
+        level_next_redump = level.dumped_at + level_redump
+        level_need_redump = level_next_redump < int(time.time())
+        if level_changed or level_need_redump:
+            logging.info('redumping level {0}'.format(level_id))
+            self.pool.destroy_level(level_id)
+            self.pool.create_level(level_id, api_level['url'])
+            level = self.pool.get_level(level_id)
+            self.api_update_level_instance(api_level, level)
+            return
+
     def loop(self):
+        """ I'm the main loop of the hypervisor. """
         while True:
             logging.debug('wake-up Neo')
-
             for api_level_instance in self.api_fetch_level_instances():
-                level_id = api_level_instance['_id']
-                api_level = api_level_instance['level']
-
-                # ignore level if incomplete
-                if 'url' not in api_level or not api_level_instance['active']:
-                    logging.debug('ignored level {0}'.format(level_id))
-                    continue
-
-                level = self.pool.get_level(level_id)
-
-                # create level if not exist
-                if not level:
-                    logging.info('creating level {0}'.format(level_id))
-                    level = self.pool.create_level(level_id, api_level['url'])
-                    self.api_update_level_instance(api_level, level)
-                    continue
-
-                # refresh/redump level if needed
-                level_changed = level.version != api_level['version']
-                level_redump = api_level['defaults']['redump']
-                level_next_redump = level.dumped_at + level_redump
-                level_need_redump = level_next_redump < int(time.time())
-                if level_changed or level_need_redump:
-                    logging.info('redumping level {0}'.format(level_id))
-                    self.destroy_level(level_id)
-                    self.pool.create_level(level_idapi_level['url'])
-                    level = self.pool.get_level(level_id)
-                    self.api_update_level_instance(api_level, level)
-                    continue
-
+                try:
+                    self.manage_level(api_level_instance)
+                except Exception as e:
+                    logging.warning('had a problem while managing level {0}: {1}', api_level_instance['_id'], e)
             time.sleep(REFRESH_RATE)
 
     def api_update_level_instance(self, api_level_instance, level):
