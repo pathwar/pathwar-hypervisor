@@ -10,8 +10,6 @@ import time
 import yaml
 
 
-LEVEL_ENDPOINT = os.environ['LEVEL_ENDPOINT']
-
 class Level(object):
     def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None):
         self.id = id
@@ -25,6 +23,10 @@ class DockerDriver(object):
     """ I manage a Docker server. """
     def __init__(self, host=None):
         self.host = host
+        if '@' in host:
+            self.ip = host.split('@')[0]
+        else:
+            self.ip = host
         self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
         self.scp = 'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
 
@@ -55,7 +57,7 @@ class DockerDriver(object):
         # stopping level
         logging.info('stopping level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "cd {1} ; docker-compose stop"'.format(self.ssh, cwd)
+        cmd = '{0} "cd {1} ; docker-compose kill"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
         # removing level
@@ -161,7 +163,7 @@ class DockerDriver(object):
                 pass
 
         # build address
-        level.address = LEVEL_ENDPOINT
+        level.address = self.ip
 
         return level
 
