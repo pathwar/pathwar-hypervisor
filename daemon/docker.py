@@ -77,7 +77,7 @@ proxy:
             os.remove(tmpfile)
 
             # docker-compose up the proxy
-            logging.info('running nginx-proxy on {0}'.format(self.host))
+            logger.info('running nginx-proxy on {0}'.format(self.host))
             cmd = '{0} "cd hypervisor-nginx-proxy ; docker-compose up -d"'.format(self.ssh)
             subprocess.call(cmd, shell=True)
         except Exception as e:
@@ -117,19 +117,19 @@ proxy:
         """ I destroy a level by ID. """
 
         # stopping level
-        logging.info('stopping level {0} on {1}'.format(level_id, self.host))
+        logger.info('stopping level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose kill"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
         # removing level
-        logging.info('removing level {0} on {1}'.format(level_id, self.host))
+        logger.info('removing level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
         # cleaning environment
-        logging.info('cleaning level {0} on {1}'.format(level_id, self.host))
+        logger.info('cleaning level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "rm -rf {1}"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
@@ -137,22 +137,22 @@ proxy:
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
         # locally download the tarball
-        logging.info('downloading {0}'.format(tarball))
+        logger.info('downloading {0}'.format(tarball))
         cmd = 'wget -q {0} -O /tmp/hypervisor-temp-level.tar'.format(tarball)
         subprocess.check_call(cmd, shell=True)
 
         # uploading it to the server
-        logging.info('uploading to {0}'.format(self.host))
+        logger.info('uploading to {0}'.format(self.host))
         cmd = '{0} /tmp/hypervisor-temp-level.tar {1}:/tmp/hypervisor-level-to-build.tar'.format(self.scp, self.host)
         subprocess.check_call(cmd, shell=True)
 
         # extract level
-        logging.info('extracting level on {0}'.format(self.host))
+        logger.info('extracting level on {0}'.format(self.host))
         cmd = '{0} "mkdir -p levels/{1} ; tar -xf /tmp/hypervisor-level-to-build.tar -C levels/{1} ; rm -f /tmp/hypervisor-level-to-build.tar"'.format(self.ssh, level_id)
         subprocess.check_call(cmd, shell=True)
 
         # preparing level image
-        logging.info('preparing level image')
+        logger.info('preparing level image')
         compose = self._get_compose(level_id)
         modified = {}
         for service, conf in compose.iteritems():
@@ -160,7 +160,7 @@ proxy:
                 m = re.match('image\-for\-(.*)', conf['image'])
                 if m:
                     tarball = '{0}.tar'.format(m.group(1))
-                    logging.info('importing {0}'.format(conf['image']))
+                    logger.info('importing {0}'.format(conf['image']))
                     cwd = 'levels/{0}'.format(level_id)
                     cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
                     subprocess.check_call(cmd, shell=True)
@@ -173,13 +173,13 @@ proxy:
         self._write_compose(level_id, modified)
 
         # building level
-        logging.info('building level {0} on {1}'.format(level_id, self.host))
+        logger.info('building level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose build"'.format(self.ssh, cwd)
         subprocess.check_call(cmd, shell=True)
 
         # running level
-        logging.info('running level {0} on {1}'.format(level_id, self.host))
+        logger.info('running level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
         subprocess.check_call(cmd, shell=True)
@@ -195,7 +195,7 @@ proxy:
         level.dumped_at = None
         level.version = None
         level.passphrases = []
-        logging.info('fetching passphrases for {0} on {1}'.format(level_id, self.host))
+        logger.info('fetching passphrases for {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose ps -q"'.format(self.ssh, cwd)
         for docker_uuid in subprocess.check_output(cmd, shell=True).splitlines():
@@ -203,7 +203,7 @@ proxy:
                 cmd = '{0} "docker inspect -f {{{{.State.StartedAt}}}} {1}"'.format(self.ssh, docker_uuid)
                 uptime = subprocess.check_output(cmd, shell=True).strip()
                 timestamp = calendar.timegm(dateutil.parser.parse(uptime).utctimetuple())
-                logging.info('found dumped_at {0} for {1} on {2}'.format(timestamp, level_id, self.host))
+                logger.info('found dumped_at {0} for {1} on {2}'.format(timestamp, level_id, self.host))
                 level.dumped_at = float(timestamp)
 
             if not level.version:
@@ -212,7 +212,7 @@ proxy:
                     cmd = '{0} "docker exec {1} bash -c \'grep version /pathwar/level.yml | awk \\"// {{ print \\$2; }}\\"\'"'.format(self.ssh, docker_uuid)
                     version = subprocess.check_output(cmd, shell=True).strip()
                     if len(version):
-                        logging.info('found version {0} for {1} on {2}'.format(version, level_id, self.host))
+                        logger.info('found version {0} for {1} on {2}'.format(version, level_id, self.host))
                         level.version = version
                 except:
                     pass
@@ -225,7 +225,7 @@ proxy:
                 for line in subprocess.check_output(cmd, shell=True).splitlines():
                     chunks = line.split()
                     if len(chunks) == 2:
-                        logging.info('found passphrase {0} for {1} on {2}'.format(chunks[0], level_id, self.host))
+                        logger.info('found passphrase {0} for {1} on {2}'.format(chunks[0], level_id, self.host))
                         level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
             except:
                 pass
