@@ -2,10 +2,9 @@ hypervisor:
   build: .
   volumes:
   - .:/usr/src/app/
-  - /home/mxs/.ssh/id_rsa:/root/.ssh/id_rsa
   environment:
-  - API_ENDPOINT=http://root-token:@licorne.pathwar.net:5000
-  - REFRESH_RATE=500
-  - DOCKER_POOL=root@poney.pathwar.net
-  - AUTH_PROXY=cheval.pathwar.net
-  - HTTP_LEVEL_PORT=2337
+  - API_ENDPOINT=     # ie: http://token:@api-host/
+  - REFRESH_RATE=     # ie: 300 (timeout in seconds between refreshes)
+  - DOCKER_POOL=      # ie: host1,user@host2 (hosts to dump levels on)
+  - AUTH_PROXY=       # ie: xxx.pathwar.net (host on which the auth proxy is setup)
+  - HTTP_LEVEL_PORT=  # ie: port to use to expose levels to the auth_proxy
