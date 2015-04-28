@@ -12,6 +12,9 @@ import time
 import yaml
 
 
+logger = logging.getLogger('hypervisor')
+
+
 HTTP_LEVEL_PORT = int(os.environ['HTTP_LEVEL_PORT'])
 AUTH_PROXY = os.environ['AUTH_PROXY']
 
@@ -48,7 +51,7 @@ class DockerDriver(object):
             cmd = '{0} "iptables -A INPUT -p tcp --dport {1} -j DROP"'.format(self.ssh, HTTP_LEVEL_PORT)
             subprocess.check_call(cmd, shell=True)
         except Exception as e:
-            logging.warning('had a problem while setting up iptables: {0}'.format(str(e)))
+            logger.warning('had a problem while setting up iptables: {0}'.format(str(e)), exc_info=True)
 
     def _setup_nginx_proxy(self):
         """ I ensure the nginx proxy is up. """
@@ -60,22 +63,25 @@ proxy:
   volumes:
   - /var/run/docker.sock:/tmp/docker.sock
 """.format(HTTP_LEVEL_PORT)
-        # create dir if not exists
-        cmd = '{0} "mkdir -p hypervisor-nginx-proxy"'.format(self.ssh)
-        subprocess.check_call(cmd, shell=True)
+        try:
+            # create dir if not exists
+            cmd = '{0} "mkdir -p hypervisor-nginx-proxy"'.format(self.ssh)
+            subprocess.call(cmd, shell=True)
 
-        # overwrite compose file
-        fd, tmpfile = tempfile.mkstemp()
-        os.write(fd, docker_compose)
-        os.close(fd)
-        cmd = '{0} {1} {2}:hypervisor-nginx-proxy/docker-compose.yml'.format(self.scp, tmpfile, self.host)
-        subprocess.check_call(cmd, shell=True)
-        os.remove(tmpfile)
+            # overwrite compose file
+            fd, tmpfile = tempfile.mkstemp()
+            os.write(fd, docker_compose)
+            os.close(fd)
+            cmd = '{0} {1} {2}:hypervisor-nginx-proxy/docker-compose.yml'.format(self.scp, tmpfile, self.host)
+            subprocess.check_call(cmd, shell=True)
+            os.remove(tmpfile)
 
-        # docker-compose up the proxy
-        logging.info('running nginx-proxy on {0}'.format(self.host))
-        cmd = '{0} "cd hypervisor-nginx-proxy ; docker-compose up -d"'.format(self.ssh)
-        subprocess.call(cmd, shell=True)
+            # docker-compose up the proxy
+            logging.info('running nginx-proxy on {0}'.format(self.host))
+            cmd = '{0} "cd hypervisor-nginx-proxy ; docker-compose up -d"'.format(self.ssh)
+            subprocess.call(cmd, shell=True)
+        except Exception as e:
+            logger.warning('failed to setup nginx proxy server on {0}'.format(self.host),  exc_info=True)
 
     def _get_compose(self, level_id):
         """ I return the docker-compose.yml file of a level. """

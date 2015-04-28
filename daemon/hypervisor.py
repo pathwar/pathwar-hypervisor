@@ -2,11 +2,13 @@
 
 import requests
 import json
+import logging.config
 import logging
 import tempfile
 import traceback
 import subprocess
 import os.path
+import raven
 import re
 import shutil
 import sys
@@ -14,6 +16,11 @@ import time
 import yaml
 
 from docker import DockerPool
+from raven.handlers.logging import SentryHandler
+from raven.conf import setup_logging
+
+
+logger = logging.getLogger('hypervisor')
 
 
 # configured via docker-compose.yml
@@ -21,9 +28,11 @@ API_ENDPOINT = os.environ['API_ENDPOINT']
 DOCKER_POOL = os.environ['DOCKER_POOL'].split(',')
 REFRESH_RATE = int(os.environ['REFRESH_RATE'])
 HTTP_LEVEL_PORT = int(os.environ['HTTP_LEVEL_PORT'])
+SENTRY_URL = os.environ['SENTRY_URL']
 
 class Hypervisor(object):
     def __init__(self):
+        logger.info('starting the hypervisor')
         self.pool = DockerPool(DOCKER_POOL)
 
     def manage_level(self, api_level_instance):
@@ -33,14 +42,14 @@ class Hypervisor(object):
 
         # ignore level if incomplete
         if 'url' not in api_level or not api_level_instance['active']:
-            logging.debug('ignored level {0}'.format(level_id))
+            logger.debug('ignored level {0}'.format(level_id))
             return
 
         level = self.pool.get_level(level_id)
 
         # create level if not exist
         if not level:
-            logging.info('creating level {0}'.format(level_id))
+            logger.info('creating level {0}'.format(level_id))
             level = self.pool.create_level(level_id, api_level['url'])
             self.api_update_level_instance(api_level_instance, level)
             return
@@ -51,7 +60,7 @@ class Hypervisor(object):
         level_next_redump = level.dumped_at + level_redump
         level_need_redump = level_next_redump < int(time.time())
         if level_changed or level_need_redump:
-            logging.info('redumping level {0}'.format(level_id))
+            logger.info('redumping level {0}'.format(level_id))
             self.pool.destroy_level(level_id)
             self.pool.create_level(level_id, api_level['url'])
             level = self.pool.get_level(level_id)
@@ -61,19 +70,18 @@ class Hypervisor(object):
     def loop(self):
         """ I'm the main loop of the hypervisor. """
         while True:
-            logging.debug('wake-up Neo')
+            logger.info('wake-up Neo')
             for api_level_instance in self.api_fetch_level_instances():
                 try:
                     self.manage_level(api_level_instance)
                 except Exception as e:
-                    logging.warning('had a problem while managing level {0}: {1}'.format(api_level_instance['_id'], str(e)))
-                    traceback.print_exc()
+                    logger.warning('had a problem while managing level {0}: {1}'.format(api_level_instance['_id'], str(e)), exc_info=True)
             time.sleep(REFRESH_RATE)
 
     def api_update_level_instance(self, api_level_instance, level):
         """ I update the state of a level on the API. """
         level_id = api_level_instance['_id']
-        logging.info('patching API for {0}'.format(level_id))
+        logger.info('patching API for {0}'.format(level_id))
         patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level_id)
         response = dict()
 
@@ -109,6 +117,45 @@ class Hypervisor(object):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logger.setLevel(logging.INFO)
+    if len(SENTRY_URL):
+        LOGGING = {
+            'version': 1,
+            'disable_existing_loggers': False,
+            'formatters': {
+                'console': {
+                    'format': '[%(asctime)s][%(levelname)s] %(name)s %(filename)s:%(funcName)s:%(lineno)d | %(message)s',
+                    'datefmt': '%H:%M:%S',
+                },
+            },
+
+            'handlers': {
+                'console': {
+                    'level': 'DEBUG',
+                    'class': 'logging.StreamHandler',
+                    'formatter': 'console'
+                },
+                'sentry': {
+                    'level': 'INFO',
+                    'class': 'raven.handlers.logging.SentryHandler',
+                    'dsn': SENTRY_URL,
+                },
+            },
+
+            'loggers': {
+                '': {
+                    'handlers': ['console', 'sentry'],
+                    'level': 'DEBUG',
+                    'propagate': True,
+                },
+                'hypervisor': {
+                    'handlers': ['console', 'sentry'],
+                    'level': 'DEBUG',
+                    'propagate': True,
+                },
+            }
+        }
+        logging.config.dictConfig(LOGGING)
+
     h = Hypervisor()
     h.loop()

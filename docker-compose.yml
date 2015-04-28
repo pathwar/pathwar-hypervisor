@@ -8,3 +8,4 @@ hypervisor:
   - DOCKER_POOL=      # ie: host1,user@host2 (hosts to dump levels on)
   - AUTH_PROXY=       # ie: xxx.pathwar.net (host on which the auth proxy is setup)
   - HTTP_LEVEL_PORT=  # ie: port to use to expose levels to the auth_proxy
+  - SENTRY_URL=       # ie: link to the sentry server
