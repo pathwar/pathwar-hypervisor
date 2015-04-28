@@ -7,4 +7,5 @@ hypervisor:
   - API_ENDPOINT=http://root-token:@licorne.pathwar.net:5000
   - REFRESH_RATE=500
   - DOCKER_POOL=root@poney.pathwar.net
-  - AUTHPROXY_IP=
+  - AUTH_PROXY=cheval.pathwar.net
+  - HTTP_LEVEL_PORT=2337

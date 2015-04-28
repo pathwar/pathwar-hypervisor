@@ -6,10 +6,14 @@ import random
 import re
 import subprocess
 import sys
+import socket
 import tempfile
 import time
 import yaml
 
+
+HTTP_LEVEL_PORT = int(os.environ['HTTP_LEVEL_PORT'])
+AUTH_PROXY = os.environ['AUTH_PROXY']
 
 class Level(object):
     def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None):
@@ -30,7 +34,21 @@ class DockerDriver(object):
             self.ip = host
         self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
         self.scp = 'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+        self._setup_iptables()
         self._setup_nginx_proxy()
+
+    def _setup_iptables(self):
+        """ I ensure that only the auth proxy access levels """
+        try:
+            ip = socket.gethostbyname(AUTH_PROXY)
+            # allow the auth proxy to connect
+            cmd = '{0} "iptables -A INPUT -p tcp --dport {1} -s {2} -j ACCEPT"'.format(self.ssh, HTTP_LEVEL_PORT, ip)
+            subprocess.check_call(cmd, shell=True)
+            # deny all other ports
+            cmd = '{0} "iptables -A INPUT -p tcp --dport {1} -j DROP"'.format(self.ssh, HTTP_LEVEL_PORT)
+            subprocess.check_call(cmd, shell=True)
+        except Exception as e:
+            logging.warning('had a problem while setting up iptables: {0}'.format(str(e)))
 
     def _setup_nginx_proxy(self):
         """ I ensure the nginx proxy is up. """
@@ -38,10 +56,10 @@ class DockerDriver(object):
 proxy:
   image: jwilder/nginx-proxy:latest
   ports:
-  - 9042:80
+  - {0}:80
   volumes:
   - /var/run/docker.sock:/tmp/docker.sock
-"""
+""".format(HTTP_LEVEL_PORT)
         # create dir if not exists
         cmd = '{0} "mkdir -p hypervisor-nginx-proxy"'.format(self.ssh)
         subprocess.check_call(cmd, shell=True)
@@ -57,7 +75,7 @@ proxy:
         # docker-compose up the proxy
         logging.info('running nginx-proxy on {0}'.format(self.host))
         cmd = '{0} "cd hypervisor-nginx-proxy ; docker-compose up -d"'.format(self.ssh)
-        subprocess.check_call(cmd, shell=True)
+        subprocess.call(cmd, shell=True)
 
     def _get_compose(self, level_id):
         """ I return the docker-compose.yml file of a level. """

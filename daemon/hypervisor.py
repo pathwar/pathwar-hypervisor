@@ -20,6 +20,7 @@ from docker import DockerPool
 API_ENDPOINT = os.environ['API_ENDPOINT']
 DOCKER_POOL = os.environ['DOCKER_POOL'].split(',')
 REFRESH_RATE = int(os.environ['REFRESH_RATE'])
+HTTP_LEVEL_PORT = int(os.environ['HTTP_LEVEL_PORT'])
 
 class Hypervisor(object):
     def __init__(self):
@@ -81,7 +82,7 @@ class Hypervisor(object):
 
         # patch level URL
         response['urls'] = []
-        response['urls'].append({'name': 'http', 'url': 'http://{0}/'.format(level.address)})
+        response['urls'].append({'name': 'http', 'url': 'http://{0}:{1}/'.format(level.address, HTTP_LEVEL_PORT)})
 
         # extract passphrases
         response['passphrases'] = level.passphrases
