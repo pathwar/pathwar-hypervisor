@@ -2,8 +2,9 @@ hypervisor:
   build: .
   volumes:
   - .:/usr/src/app/
-  - /root/.ssh/id_rsa:/root/.ssh/id_rsa
+  - /home/mxs/.ssh/id_rsa:/root/.ssh/id_rsa
   environment:
   - API_ENDPOINT=http://root-token:@licorne.pathwar.net:5000
   - REFRESH_RATE=500
   - DOCKER_POOL=root@poney.pathwar.net
+  - AUTHPROXY_IP=
