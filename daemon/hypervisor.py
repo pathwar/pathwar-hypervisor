@@ -82,7 +82,7 @@ class Hypervisor(object):
         """ I update the state of a level on the API. """
         level_id = api_level_instance['_id']
         logger.info('patching API for {0}'.format(level_id))
-        patch_url = '{0}/level-instances/{1}'.format(API_ENDPOINT, level_id)
+        patch_url = '{0}/raw-level-instances/{1}'.format(API_ENDPOINT, level_id)
         response = dict()
 
         if level is None:
@@ -104,7 +104,7 @@ class Hypervisor(object):
 
     def api_fetch_level_instances(self):
         """ I fetch level instances from the API. """
-        url = '{0}/{1}'.format(API_ENDPOINT, 'level-instances?embedded={"level":1}')
+        url = '{0}/{1}'.format(API_ENDPOINT, 'raw-level-instances?embedded={"level":1}')
         r = requests.get(url)
         if r.status_code == 200:
             level_instances = []
@@ -139,6 +139,7 @@ if __name__ == '__main__':
                     'level': 'INFO',
                     'class': 'raven.handlers.logging.SentryHandler',
                     'dsn': SENTRY_URL,
+                    'site': 'hypervisor',
                 },
             },
 
