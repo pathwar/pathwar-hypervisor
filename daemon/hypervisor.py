@@ -104,7 +104,7 @@ class Hypervisor(object):
 
     def api_fetch_level_instances(self):
         """ I fetch level instances from the API. """
-        url = '{0}/{1}'.format(API_ENDPOINT, 'raw-level-instances?embedded={"level":1}')
+        url = '{0}/{1}'.format(API_ENDPOINT, 'hypervisor-level-instances?embedded={"level":1}')
         r = requests.get(url)
         if r.status_code == 200:
             level_instances = []
@@ -152,7 +152,7 @@ if __name__ == '__main__':
                 'hypervisor': {
                     'handlers': ['console', 'sentry'],
                     'level': 'DEBUG',
-                    'propagate': True,
+                    'propagate': False,
                 },
             }
         }
