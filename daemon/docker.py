@@ -157,6 +157,7 @@ proxy:
                     if 'environment' not in conf:
                         conf['environment'] = []
                     conf['environment'].append('VIRTUAL_ALLOW={0}'.format(socket.gethostbyname(AUTH_PROXY)))
+                    conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
 
             modified[service] = conf
         self._write_compose(level_id, modified)
