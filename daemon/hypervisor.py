@@ -89,8 +89,12 @@ class Hypervisor(object):
             return
 
         # patch level URL
+
+        # FIXME - this is a temporary hack for Epitech's session
+        response['private_urls'] = []
+        response['private_urls'].append({'name': 'http', 'url': 'http://{0}:{1}/'.format(level.address, HTTP_LEVEL_PORT)})
         response['urls'] = []
-        response['urls'].append({'name': 'http', 'url': 'http://{0}:{1}/'.format(level.address, HTTP_LEVEL_PORT)})
+        response['urls'].append({'name': 'http', 'url': 'http://{0}.levels.pathwar.net/'.format(api_level_instance['_id'])})
 
         # extract passphrases
         response['passphrases'] = level.passphrases
