@@ -37,18 +37,26 @@ class DockerDriver(object):
             self.ip = host
         self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
         self.scp = 'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
-        self._setup_iptables()
+
+        # FIXME Session Epitech
+        # self._setup_iptables()
+
         self._setup_nginx_proxy()
 
     def _setup_iptables(self):
         """ I ensure that only the auth proxy access levels """
         try:
             ip = socket.gethostbyname(AUTH_PROXY)
+
             # allow the auth proxy to connect
-            cmd = '{0} "iptables -A INPUT -p tcp --dport {1} -s {2} -j ACCEPT"'.format(self.ssh, HTTP_LEVEL_PORT, ip)
+            rule = 'INPUT -p tcp --dport {1} -s {2} -j ACCEPT'.format(self.ssh, HTTP_LEVEL_PORT, ip)
+            cmd = '{0} bash -c "iptables -C {1} || iptables -A {1}"'.format(self.ssh, rule)
+            logger.warning(cmd)
             subprocess.check_call(cmd, shell=True)
+
             # deny all other ports
-            cmd = '{0} "iptables -A INPUT -p tcp --dport {1} -j DROP"'.format(self.ssh, HTTP_LEVEL_PORT)
+            rule = 'INPUT -p tcp --dport {1} -j DROP'.format(self.ssh, HTTP_LEVEL_PORT)
+            cmd = '{0} bash -c "iptables -C {1} || iptables -A {1}"'.format(self.ssh, rule)
             subprocess.check_call(cmd, shell=True)
         except Exception as e:
             logger.warning('had a problem while setting up iptables: {0}'.format(str(e)), exc_info=True)
