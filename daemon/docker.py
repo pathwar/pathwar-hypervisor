@@ -173,10 +173,11 @@ proxy:
                     cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
                     subprocess.check_call(cmd, shell=True)
                     # patching docker-compose so it contains a VIRTUAL_HOST entry
-                    # (required by nginx-proxy)
+                    # (required by nginx-proxy), we generate a random one only known
+                    # to the authproxy module.
                     if 'environment' not in conf:
                         conf['environment'] = []
-                    conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
+                    conf['environment'].append('VIRTUAL_HOST={0:x}'.format(random.getrandbits(128)))
             modified[service] = conf
         self._write_compose(level_id, modified)
 
@@ -214,6 +215,17 @@ proxy:
                 logger.info('found dumped_at {0} for {1} on {2}'.format(timestamp, level_id, self.host))
                 level.dumped_at = float(timestamp)
 
+            if not level.address:
+                # fine to fail here
+                try:
+                    cmd = '{0} "docker inspect -f \'{{{{range .Config.Env}}}}{{{{println .}}}}{{{{end}}}}\' {1} | grep VIRTUAL_HOST"'.format(self.ssh, docker_uuid)
+                    vhost = subprocess.check_output(cmd, shell=True).strip().split('=')[1]
+                    if len(vhost):
+                        logging.info('found virtualhost {0} for {1} on {2}'.format(vhost, level_id, self.host))
+                        level.address = vhost
+                except:
+                    pass
+
             if not level.version:
                 try:
                     # here, it is fine to fail
@@ -237,9 +249,6 @@ proxy:
                         level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
             except:
                 pass
-
-        # build address
-        level.address = self.ip
 
         return level
 
