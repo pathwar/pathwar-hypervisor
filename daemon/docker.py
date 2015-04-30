@@ -53,9 +53,9 @@ proxy:
   - my_proxy.conf:/etc/nginx/conf.d/my_proxy.conf
 """.format(HTTP_LEVEL_PORT)
 
-            my_proxy = """
-            allow {0};
-            deny all;
+        my_proxy = """
+allow {0};
+deny all;
 """.format(socket.gethostbyname(AUTH_PROXY))
 
         try:
