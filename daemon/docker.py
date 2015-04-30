@@ -156,7 +156,6 @@ proxy:
                     # to the authproxy module.
                     if 'environment' not in conf:
                         conf['environment'] = []
-                    conf['environment'].append('VIRTUAL_HOST={0:x}'.format(random.getrandbits(128)))
                     conf['environment'].append('VIRTUAL_ALLOW={0}'.format(socket.gethostbyname(AUTH_PROXY)))
 
             modified[service] = conf
@@ -196,17 +195,6 @@ proxy:
                 logger.info('found dumped_at {0} for {1} on {2}'.format(timestamp, level_id, self.host))
                 level.dumped_at = float(timestamp)
 
-            if not level.address:
-                # fine to fail here
-                try:
-                    cmd = '{0} "docker inspect -f \'{{{{range .Config.Env}}}}{{{{println .}}}}{{{{end}}}}\' {1} | grep VIRTUAL_HOST"'.format(self.ssh, docker_uuid)
-                    vhost = subprocess.check_output(cmd, shell=True).strip().split('=')[1]
-                    if len(vhost):
-                        logging.info('found virtualhost {0} for {1} on {2}'.format(vhost, level_id, self.host))
-                        level.address = vhost
-                except:
-                    pass
-
             if not level.version:
                 try:
                     # here, it is fine to fail
@@ -230,6 +218,8 @@ proxy:
                         level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
             except:
                 pass
+
+        level.address = self.ip
 
         return level
 
