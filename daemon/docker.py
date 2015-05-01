@@ -25,6 +25,7 @@ class Level(object):
         self.address = address
         self.dumped_at = dumped_at
         self.version = version
+        self.source = source
 
 
 class DockerDriver(object):
@@ -151,7 +152,7 @@ deny all;
 
         # extract level
         logger.info('extracting level on {0}'.format(self.host))
-        cmd = '{0} "mkdir -p levels/{1} ; tar -xf /tmp/hypervisor-level-to-build.tar -C levels/{1} ; rm -f /tmp/hypervisor-level-to-build.tar"'.format(self.ssh, level_id)
+        cmd = '{0} "mkdir -p levels/{1} ; tar -xf /tmp/hypervisor-level-to-build.tar -C levels/{1} ; rm -f /tmp/hypervisor-level-to-build.tar ; echo {2} > levels/{1}/source"'.format(self.ssh, level_id, tarball)
         subprocess.check_call(cmd, shell=True)
 
         # preparing level image
@@ -199,6 +200,7 @@ deny all;
         # fetch passphrases, uptime and version
         level.dumped_at = None
         level.version = None
+        level.tarball = None
         level.passphrases = []
         logger.info('fetching passphrases for {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
@@ -234,6 +236,9 @@ deny all;
                         level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
             except:
                 pass
+
+        cmd = '{0} "cat levels/{1}/source"'.format(self.ssh, level_id)
+        level.source = subprocess.check_output(cmd, shell=True).strip()
 
         level.address = self.ip
 

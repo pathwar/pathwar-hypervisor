@@ -55,7 +55,7 @@ class Hypervisor(object):
             return
 
         # refresh/redump level if needed
-        level_changed = False # FIXME: level.version != api_level['version']
+        level_changed = level.source != api_level['url']
         level_redump = api_level['defaults']['redump']
         level_next_redump = level.dumped_at + level_redump
         level_need_redump = level_next_redump < int(time.time())
