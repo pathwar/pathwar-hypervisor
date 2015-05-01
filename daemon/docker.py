@@ -19,7 +19,7 @@ HTTP_LEVEL_PORT = int(os.environ['HTTP_LEVEL_PORT'])
 AUTH_PROXY = os.environ['AUTH_PROXY']
 
 class Level(object):
-    def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None):
+    def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None, source=None):
         self.id = id
         self.passphrases = passphrases
         self.address = address
