@@ -237,8 +237,12 @@ deny all;
             except:
                 pass
 
-        cmd = '{0} "cat levels/{1}/source"'.format(self.ssh, level_id)
-        level.source = subprocess.check_output(cmd, shell=True).strip()
+        try:
+            cmd = '{0} "cat levels/{1}/source"'.format(self.ssh, level_id)
+            level.source = subprocess.check_output(cmd, shell=True).strip()
+        except Exception as e:
+            logger.warning("failed to find source on server {0} for level {1}".format(self.host, level_id), exc_info=True)
+            pass
 
         level.address = self.ip
 
