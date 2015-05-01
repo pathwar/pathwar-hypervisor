@@ -140,7 +140,7 @@ if __name__ == '__main__':
                     'formatter': 'console'
                 },
                 'sentry': {
-                    'level': 'INFO',
+                    'level': 'WARNING',
                     'class': 'raven.handlers.logging.SentryHandler',
                     'dsn': SENTRY_URL,
                     'site': 'hypervisor',
