@@ -57,6 +57,8 @@ proxy:
         my_proxy = """
 allow {0};
 deny all;
+
+proxy_set_header Authorization "";
 """.format(socket.gethostbyname(AUTH_PROXY))
 
         try:
