@@ -147,7 +147,7 @@ proxy_set_header Authorization "";
 
         logger.info('downloading {0}'.format(tarball))
         hashtar = hashlib.sha224(tarball).hexdigest()
-        cmd = '{0} "wget -nc -q {1} -O /tmp/{1}"'.format(self.ssh, hashtar)
+        cmd = '{0} "wget -nc -q {1} -O /tmp/{2}"'.format(self.ssh, tarball, hashtar)
         subprocess.check_call(cmd, shell=True)
 
         # only extract level if source changed
