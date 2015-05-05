@@ -153,7 +153,7 @@ proxy_set_header Authorization "";
         # only extract level if source changed
         logger.info('extracting level on {0}'.format(self.host))
         source = 'levels/{0}/source'.format(level_id)
-        cmd = '{0} "test -f {1} && [ $(cat {1}) = "{2}" ] || (mkdir -p levels/{1} ; tar -xf /tmp/{2} -C levels/{1} ; echo {2} > {1})"'.format(self.ssh, source, hashtar)
+        cmd = '{0} "test -f {1} && [ $(cat {1}) = "{2}" ] || (mkdir -p levels/{3} ; tar -xf /tmp/{2} -C levels/{1} ; echo {2} > {1})"'.format(self.ssh, source, hashtar, level_id)
         subprocess.check_call(cmd, shell=True)
 
         # preparing level image
