@@ -1,5 +1,6 @@
 import calendar
 import dateutil.parser
+import hashlib
 import logging
 import os
 import random
@@ -142,19 +143,17 @@ proxy_set_header Authorization "";
 
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
-        # locally download the tarball
+        # download the tarball remotely
+
         logger.info('downloading {0}'.format(tarball))
-        cmd = 'wget -q {0} -O /tmp/hypervisor-temp-level.tar'.format(tarball)
+        hashtar = hashlib.sha224(tarball).hexdigest()
+        cmd = '{0} "wget -nc -q {0} -O /tmp/{1}"'.format(self.ssh, hashtar)
         subprocess.check_call(cmd, shell=True)
 
-        # uploading it to the server
-        logger.info('uploading to {0}'.format(self.host))
-        cmd = '{0} /tmp/hypervisor-temp-level.tar {1}:/tmp/hypervisor-level-to-build.tar'.format(self.scp, self.host)
-        subprocess.check_call(cmd, shell=True)
-
-        # extract level
+        # only extract level if source changed
         logger.info('extracting level on {0}'.format(self.host))
-        cmd = '{0} "mkdir -p levels/{1} ; tar -xf /tmp/hypervisor-level-to-build.tar -C levels/{1} ; rm -f /tmp/hypervisor-level-to-build.tar ; echo {2} > levels/{1}/source"'.format(self.ssh, level_id, tarball)
+        source = 'levels/{0}/source'.format(level_id)
+        cmd = '{0} "test -f {1} && [ $(cat {1}) = "{2}" ] || (mkdir -p levels/{1} ; tar -xf /tmp/{2} -C levels/{1} ; echo {2} > {1})"'.format(self.ssh, source, hashtar)
         subprocess.check_call(cmd, shell=True)
 
         # preparing level image
