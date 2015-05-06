@@ -106,9 +106,11 @@ class Hypervisor(object):
 
         r = requests.patch(patch_url, data=json.dumps(response), headers=headers)
 
-    def api_fetch_level_instances(self):
+    def api_fetch_level_instances(self, resource=None):
         """ I fetch level instances from the API. """
-        url = '{0}/{1}'.format(API_ENDPOINT, 'hypervisor-level-instances?embedded={"level":1}')
+        if not resource:
+            resource = 'hypervisor-level-instances?embedded={"level":1}'
+        url = '{0}/{1}'.format(API_ENDPOINT, resource)
         r = requests.get(url)
         if r.status_code == 200:
             level_instances = []
@@ -116,6 +118,13 @@ class Hypervisor(object):
             if '_items' in content:
                 for item in content['_items']:
                     level_instances.append(item)
+            if '_links' in content:
+                try:
+                    if 'next' in content['_links']:
+                        next_resource = '{0}&embedded={{"level":1}}'.format(content['_links']['next']['href'])
+                        level_instances.extend(api_fetch_level_instances(resource=next_resource))
+                except:
+                    pass
             return level_instances
         return []
 
