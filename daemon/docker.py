@@ -1,4 +1,3 @@
-import calendar
 import dateutil.parser
 import hashlib
 import logging
@@ -210,9 +209,8 @@ proxy_set_header Authorization "";
             if not level.dumped_at:
                 cmd = '{0} "docker inspect -f {{{{.State.StartedAt}}}} {1}"'.format(self.ssh, docker_uuid)
                 uptime = subprocess.check_output(cmd, shell=True).strip()
-                timestamp = calendar.timegm(dateutil.parser.parse(uptime).utctimetuple())
-                logger.info('found dumped_at {0} for {1} on {2}'.format(timestamp, level_id, self.host))
-                level.dumped_at = float(timestamp)
+                level.dumped_at = dateutil.parser.parse(uptime)
+                logger.info('found dumped_at {0} for {1} on {2}'.format(level.dumped_at, level_id, self.host))
 
             if not level.version:
                 try:

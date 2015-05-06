@@ -15,6 +15,7 @@ import sys
 import time
 import yaml
 
+from datetime import timedelta, datetime
 from docker import DockerPool
 from raven.handlers.logging import SentryHandler
 from raven.conf import setup_logging
@@ -57,8 +58,8 @@ class Hypervisor(object):
         # refresh/redump level if needed
         level_changed = level.source != api_level['url']
         level_redump = api_level['defaults']['redump']
-        level_next_redump = level.dumped_at + level_redump
-        level_need_redump = level_next_redump < int(time.time())
+        level_next_redump = level.dumped_at + timedelta(seconds=level_redump)
+        level_need_redump = level_next_redump < datetime.now(level_next_redump.tzinfo)
         if level_changed or level_need_redump:
             logger.info('redumping level {0}'.format(level_id))
             self.pool.destroy_level(level_id)
