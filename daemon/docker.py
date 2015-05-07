@@ -137,11 +137,11 @@ proxy_set_header Authorization "";
                     subprocess.check_call(cmd, shell=True)
                     # raise here if level has no REBUILD file
 
-                    # removing level
-                    logger.info('removing level {0} on {1}'.format(level_id, self.host))
-                    cwd = 'levels/{0}'.format(level_id)
-                    cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
-                    subprocess.call(cmd, shell=True)
+                    # FIXME: removing level
+                    # logger.info('removing level {0} on {1}'.format(level_id, self.host))
+                    # cwd = 'levels/{0}'.format(level_id)
+                    # cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
+                    # subprocess.call(cmd, shell=True)
 
                     # rebuild
                     logger.info('rebuilding level image for {0}'.format(level_id))
