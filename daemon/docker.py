@@ -140,10 +140,35 @@ proxy_set_header Authorization "";
         cmd = '{0} "rm -rf {1}"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
+    def rebuild_if_needed(self, level_id, tarball, conf):
+        try:
+            cmd = '{0} "cat levels/{1}/REBUILD"'.format(self.ssh, level_id)
+            subprocess.check_call(cmd, shell=True)
+            logger.info('rebuilding level image for {0}'.format(level_id))
+            # never reached if level is not needed
+            m = re.match('image\-for\-(.*)', conf['image'])
+            if m:
+                tarball = '{0}.tar'.format(m.group(1))
+                logger.info('importing {0}'.format(conf['image']))
+                cwd = 'levels/{0}'.format(level_id)
+                cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
+                subprocess.check_call(cmd, shell=True)
+                # patching docker-compose so it contains a VIRTUAL_HOST entry
+                # (required by nginx-proxy), we generate a random one only known
+                # to the authproxy module.
+                if 'environment' not in conf:
+                    conf['environment'] = []
+                conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
+            except:
+                logger.info('do not rebuild level image for {0}, not changed'.format(level_id))
+                pass
+        cmd = '{0} "rm -f levels/{1}/REBUILD"'.format(self.ssh, level_id)
+        subprocess.call(cmd, shell=True)
+
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
-        # download the tarball remotely
 
+        # download the tarball remotely
         logger.info('downloading {0}'.format(tarball))
         hashtar = hashlib.sha224(tarball).hexdigest()
         cmd = '{0} "wget -nc -q {1} -O /tmp/{2}"'.format(self.ssh, tarball, hashtar)
@@ -152,7 +177,7 @@ proxy_set_header Authorization "";
         # only extract level if source changed
         logger.info('extracting level on {0}'.format(self.host))
         source = 'levels/{0}/source'.format(level_id)
-        cmd = '{0} "test -f {1} && [ $(cat {1}) = "{2}" ] || (mkdir -p levels/{3} ; tar -xf /tmp/{2} -C levels/{3} ; echo {2} > {1})"'.format(self.ssh, source, hashtar, level_id)
+        cmd = '{0} "test -f {1} && [ $(cat {1}) = "{2}" ] || (mkdir -p levels/{3} ; tar -xf /tmp/{2} -C levels/{3} ; echo {2} > {1} ; touch levels/{3}/REBUILD)"'.format(self.ssh, source, hashtar, level_id)
         subprocess.check_call(cmd, shell=True)
 
         # preparing level image
@@ -161,20 +186,7 @@ proxy_set_header Authorization "";
         modified = {}
         for service, conf in compose.iteritems():
             if 'image' in conf:
-                m = re.match('image\-for\-(.*)', conf['image'])
-                if m:
-                    tarball = '{0}.tar'.format(m.group(1))
-                    logger.info('importing {0}'.format(conf['image']))
-                    cwd = 'levels/{0}'.format(level_id)
-                    cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
-                    subprocess.check_call(cmd, shell=True)
-                    # patching docker-compose so it contains a VIRTUAL_HOST entry
-                    # (required by nginx-proxy), we generate a random one only known
-                    # to the authproxy module.
-                    if 'environment' not in conf:
-                        conf['environment'] = []
-                    conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
-
+                self.rebuild_if_needed(level_id, tarball, conf)
             modified[service] = conf
         self._write_compose(level_id, modified)
 
