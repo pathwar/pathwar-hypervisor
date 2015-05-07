@@ -128,12 +128,6 @@ proxy_set_header Authorization "";
         cmd = '{0} "cd {1} ; docker-compose kill"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
-        # removing level
-        logger.info('removing level {0} on {1}'.format(level_id, self.host))
-        cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
-        subprocess.call(cmd, shell=True)
-
     def rebuild_if_needed(self, level_id, tarball, conf):
             # never reached if level is not needed
             m = re.match('image\-for\-(.*)', conf['image'])
@@ -141,12 +135,22 @@ proxy_set_header Authorization "";
                 try:
                     cmd = '{0} "cat levels/{1}/REBUILD"'.format(self.ssh, level_id)
                     subprocess.check_call(cmd, shell=True)
+                    # raise here if level has no REBUILD file
+
+                    # removing level
+                    logger.info('removing level {0} on {1}'.format(level_id, self.host))
+                    cwd = 'levels/{0}'.format(level_id)
+                    cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
+                    subprocess.call(cmd, shell=True)
+
+                    # rebuild
                     logger.info('rebuilding level image for {0}'.format(level_id))
                     tarball = '{0}.tar'.format(m.group(1))
                     logger.info('importing {0}'.format(conf['image']))
                     cwd = 'levels/{0}'.format(level_id)
                     cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
                     subprocess.check_call(cmd, shell=True)
+
                     # patching docker-compose so it contains a VIRTUAL_HOST entry
                     # (required by nginx-proxy), we generate a random one only known
                     # to the authproxy module.
