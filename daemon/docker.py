@@ -153,9 +153,9 @@ proxy_set_header Authorization "";
                 if 'environment' not in conf:
                     conf['environment'] = []
                 conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
-            except:
-                logger.info('do not rebuild level image for {0}, not changed'.format(level_id))
-                pass
+        except:
+            logger.info('do not rebuild level image for {0}, not changed'.format(level_id))
+            pass
         cmd = '{0} "rm -f levels/{1}/REBUILD"'.format(self.ssh, level_id)
         subprocess.call(cmd, shell=True)
 
