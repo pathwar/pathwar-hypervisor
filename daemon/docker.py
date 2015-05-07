@@ -134,12 +134,6 @@ proxy_set_header Authorization "";
         cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
-        # cleaning environment
-        logger.info('cleaning level {0} on {1}'.format(level_id, self.host))
-        cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "rm -rf {1}"'.format(self.ssh, cwd)
-        subprocess.call(cmd, shell=True)
-
     def rebuild_if_needed(self, level_id, tarball, conf):
         try:
             cmd = '{0} "cat levels/{1}/REBUILD"'.format(self.ssh, level_id)
@@ -177,7 +171,7 @@ proxy_set_header Authorization "";
         # only extract level if source changed
         logger.info('extracting level on {0}'.format(self.host))
         source = 'levels/{0}/source'.format(level_id)
-        cmd = '{0} "test -f {1} && [ $(cat {1}) = "{2}" ] || (mkdir -p levels/{3} ; tar -xf /tmp/{2} -C levels/{3} ; echo {2} > {1} ; touch levels/{3}/REBUILD)"'.format(self.ssh, source, hashtar, level_id)
+        cmd = '{0} \'test -f {1} && [ $(cat {1}) = {2} ] || (mkdir -p levels/{4} ; tar -xf /tmp/{3} -C levels/{4} ; echo {2} > {1}) ; touch levels/{4}/REBUILD)\''.format(self.ssh, source, tarball, hashtar, level_id)
         subprocess.check_call(cmd, shell=True)
 
         # preparing level image

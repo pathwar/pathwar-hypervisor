@@ -123,7 +123,7 @@ class Hypervisor(object):
                 try:
                     if 'next' in content['_links']:
                         next_resource = '{0}&embedded={{"level":1}}'.format(content['_links']['next']['href'])
-                        level_instances.extend(api_fetch_level_instances(resource=next_resource))
+                        level_instances.extend(self.api_fetch_level_instances(resource=next_resource))
                 except:
                     pass
             return level_instances
