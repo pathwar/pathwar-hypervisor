@@ -156,7 +156,9 @@ proxy_set_header Authorization "";
                     # to the authproxy module.
                     if 'environment' not in conf:
                         conf['environment'] = []
-                    conf['environment'].append('VIRTUAL_HOST={0}'.format(level_id))
+                    vhost = 'VIRTUAL_HOST={0}'.format(level_id)
+                    if vhost not in conf['environment']:
+                        conf['environment'].append(vhost)
                 except:
                     logger.info('do not rebuild level image for {0}, not changed'.format(level_id))
                     pass
