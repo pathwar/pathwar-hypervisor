@@ -36,8 +36,9 @@ class DockerDriver(object):
             self.ip = host.split('@')[1]
         else:
             self.ip = host
-        self.ssh = 'ssh {0} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'.format(host)
-        self.scp = 'scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+        ssh_options = '-o ControlMaster=auto -o ControlPersist=10m -o ControlPath=~/%r@%h:%p -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no'
+        self.ssh = 'ssh {0} {1}'.format(host, ssh_options)
+        self.scp = 'scp {0}'.format(ssh_options)
 
         self._setup_nginx_proxy()
 
