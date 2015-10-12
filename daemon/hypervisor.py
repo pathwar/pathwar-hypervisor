@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import requests
 import json
 import logging.config
@@ -67,6 +68,28 @@ class Hypervisor(object):
             level = self.pool.get_level(level_id)
             self.api_update_level_instance(api_level_instance, level)
             return
+
+    def force_redump(self, uuid):
+        """ Used to force the redump of a level. """
+        for api_level_instance in self.api_fetch_level_instances():
+            if api_fetch_level_instances['_id'] == uuid:
+                level_id = api_level_instance['_id']
+                api_level = api_level_instance['level']
+
+                # ignore level if incomplete
+                if 'url' not in api_level or not api_level_instance['active']:
+                    logger.debug('ignored level {0}'.format(level_id))
+                    return
+
+                logger.info('redumping level {0}'.format(level_id))
+                self.pool.destroy_level(level_id)
+                self.pool.create_level(level_id, api_level['url'])
+                level = self.pool.get_level(level_id)
+                self.api_update_level_instance(api_level_instance, level)
+
+                return
+
+        raise RuntimeError('level-instance {} not found'.format(uuid))
 
     def loop(self):
         """ I'm the main loop of the hypervisor. """
@@ -172,5 +195,17 @@ if __name__ == '__main__':
         }
         logging.config.dictConfig(LOGGING)
 
-    h = Hypervisor()
-    h.loop()
+    parser = argparse.ArgumentParser('Pathwar\'s hypervisor')
+    parser.add_argument('action', type=str, choices=['loop', 'force-redump'], default='loop', help='action to perform')
+    parser.add_argument('--uuid', type=str, help='uuid of the level instance to manipulate')
+    args = parser.parse_args()
+
+    if args.action == 'loop':
+        h = Hypervisor()
+        h.loop()
+    elif args.action == 'force-redump':
+        instance_uuid = args.uuid
+        if not instance_uuid:
+            raise RuntimeError('bad usage: missing instance uuid')
+        h = Hypervisor()
+        h.force_redump(instance_uuid)
