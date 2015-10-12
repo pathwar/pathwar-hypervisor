@@ -14,4 +14,4 @@ COPY requirements.txt /usr/src/app/
 RUN pip install -r requirements.txt
 COPY . /usr/src/app
 ENTRYPOINT []
-CMD ["python", "daemon/hypervisor.py"]
+CMD ["python", "daemon/hypervisor.py", "loop"]
