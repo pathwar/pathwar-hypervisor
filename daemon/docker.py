@@ -52,7 +52,7 @@ proxy:
   - {0}:80
   volumes:
   - /var/run/docker.sock:/tmp/docker.sock
-  - my_proxy.conf:/etc/nginx/conf.d/my_proxy.conf
+  - ./my_proxy.conf:/etc/nginx/conf.d/my_proxy.conf
   restart: always
 """.format(HTTP_LEVEL_PORT)
 
