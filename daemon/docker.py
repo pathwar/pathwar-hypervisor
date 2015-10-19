@@ -273,6 +273,8 @@ class DockerPool(object):
             self.pool.append(DockerDriver(host=server_ip))
         # init levels
         self.levels = {}
+
+    def load(self):
         for server in self.pool:
             for level_id in server.get_running_level_ids():
                 level = server.inspect_level(level_id)
@@ -281,6 +283,13 @@ class DockerPool(object):
     def _pick_server(self):
         """ Allocation of levels on servers. """
         return self.pool[int(random.random() * len(self.pool))]
+
+    def destroy_blindly(self, level_instance_id):
+        """ I blindly kill a level running on the pool of servers. """
+        for server in self.pool:
+            server.destroy_level(level_instance_id)
+            if level_instance_id in self.levels:
+                del self.levels[level_instance_id]
 
     def destroy_level(self, level_id):
         """ I kill a level running on the pool of servers. """

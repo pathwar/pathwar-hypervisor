@@ -37,6 +37,9 @@ class Hypervisor(object):
         logger.info('starting the hypervisor')
         self.pool = DockerPool(DOCKER_POOL)
 
+    def load(self):
+        self.pool.load()
+
     def manage_level(self, api_level_instance):
         """ I manage a level instance, create it, redump if needed, ... """
         level_id = api_level_instance['_id']
@@ -72,7 +75,7 @@ class Hypervisor(object):
     def force_redump(self, uuid):
         """ Used to force the redump of a level. """
         for api_level_instance in self.api_fetch_level_instances():
-            if api_fetch_level_instances['_id'] == uuid:
+            if api_level_instance['_id'] == uuid:
                 level_id = api_level_instance['_id']
                 api_level = api_level_instance['level']
 
@@ -82,7 +85,7 @@ class Hypervisor(object):
                     return
 
                 logger.info('redumping level {0}'.format(level_id))
-                self.pool.destroy_level(level_id)
+                self.pool.destroy_blindly(level_id)
                 self.pool.create_level(level_id, api_level['url'])
                 level = self.pool.get_level(level_id)
                 self.api_update_level_instance(api_level_instance, level)
@@ -202,6 +205,7 @@ if __name__ == '__main__':
 
     if args.action == 'loop':
         h = Hypervisor()
+        h.load()
         h.loop()
     elif args.action == 'force-redump':
         instance_uuid = args.uuid
