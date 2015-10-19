@@ -133,7 +133,7 @@ proxy_set_header Authorization "";
         # stopping level
         logger.info('stopping level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "cd {1} ; docker-compose kill"'.format(self.ssh, cwd)
+        cmd = '{0} "test -d {1} && (cd {1} ; docker-compose kill)"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
     def rebuild_if_needed(self, level_id, tarball, conf):
@@ -163,17 +163,20 @@ proxy_set_header Authorization "";
                 logger.info('importing {0}'.format(conf['image']))
                 cwd = 'levels/{0}'.format(level_id)
                 cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
-                subprocess.check_call(cmd, shell=True)
+                check_call(cmd, shell=True)
 
                 # patching docker-compose so it contains a VIRTUAL_HOST entry
                 # (required by nginx-proxy), we generate a random one only known
                 # to the authproxy module.
-                if 'environment' not in conf:
-                    conf['environment'] = []
-                vhost = 'VIRTUAL_HOST={0}'.format(level_id)
-                conf['environment'] = conf.get('environment', {})
-                if vhost not in conf['environment']:
-                    conf['environment'].append(vhost)
+                conf['environment'] = conf.get('environment', [])
+                print(conf.get('environment'))
+                if isinstance(conf['environment'], list):
+                    conf['environment'] = {
+                        line.split("=")[0]: line.split("=")[1]
+                        for line in conf['environment']
+                    }
+                conf['environment']['VIRTUAL_HOST'] = conf['environment'].get('VIRTUAL_HOST', str(level_id))
+                print(conf.get('environment'))
 
             # cleanup for next rebuild
             cmd = '{0} "rm -f levels/{1}/REBUILD"'.format(self.ssh, level_id)
@@ -214,7 +217,9 @@ proxy_set_header Authorization "";
         section = compose.values()[0]
         level_type = section.get('labels', {}).get('PATHWAR_LEVEL_TYPE', 'web')
         if level_type == "unix":
-            cmd = '{0} "cd {1}; docker-compose run {2}; docker ps -lq; docker inspect $(docker ps -lq)"'.format(self.ssh, cwd, main)
+            # FIXME: docker ps -lq is not thread safe
+            # we should use the docker-compose feature: name
+            cmd = '{0} "cd {1}; docker-compose run {2}; docker commit \`docker ps -lq\` unix-{3}"'.format(self.ssh, cwd, main, str(level_id))
             check_call(cmd, shell=True)
             print("DOCKER_COMPOSE", level_type)
 
