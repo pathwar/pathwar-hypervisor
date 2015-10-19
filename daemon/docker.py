@@ -138,32 +138,36 @@ proxy_set_header Authorization "";
                     cmd = '{0} "cat levels/{1}/REBUILD"'.format(self.ssh, level_id)
                     subprocess.check_call(cmd, shell=True)
                     # raise here if level has no REBUILD file
-
-                    # FIXME: removing level
-                    # logger.info('removing level {0} on {1}'.format(level_id, self.host))
-                    # cwd = 'levels/{0}'.format(level_id)
-                    # cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
-                    # subprocess.call(cmd, shell=True)
-
-                    # rebuild
-                    logger.info('rebuilding level image for {0}'.format(level_id))
-                    tarball = '{0}.tar'.format(m.group(1))
-                    logger.info('importing {0}'.format(conf['image']))
-                    cwd = 'levels/{0}'.format(level_id)
-                    cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
-                    subprocess.check_call(cmd, shell=True)
-
-                    # patching docker-compose so it contains a VIRTUAL_HOST entry
-                    # (required by nginx-proxy), we generate a random one only known
-                    # to the authproxy module.
-                    if 'environment' not in conf:
-                        conf['environment'] = []
-                    vhost = 'VIRTUAL_HOST={0}'.format(level_id)
-                    if vhost not in conf['environment']:
-                        conf['environment'].append(vhost)
                 except:
                     logger.info('do not rebuild level image for {0}, not changed'.format(level_id))
-                    pass
+                    return
+
+
+
+                # FIXME: removing level
+                # logger.info('removing level {0} on {1}'.format(level_id, self.host))
+                # cwd = 'levels/{0}'.format(level_id)
+                # cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
+                # subprocess.call(cmd, shell=True)
+
+
+                # rebuild
+                logger.info('rebuilding level image for {0}'.format(level_id))
+                tarball = '{0}.tar'.format(m.group(1))
+                logger.info('importing {0}'.format(conf['image']))
+                cwd = 'levels/{0}'.format(level_id)
+                cmd = '{0} "cd {1} ; cat {2} | docker import - {3}"'.format(self.ssh, cwd, tarball, conf['image'])
+                subprocess.check_call(cmd, shell=True)
+
+                # patching docker-compose so it contains a VIRTUAL_HOST entry
+                # (required by nginx-proxy), we generate a random one only known
+                # to the authproxy module.
+                if 'environment' not in conf:
+                    conf['environment'] = []
+                vhost = 'VIRTUAL_HOST={0}'.format(level_id)
+                conf['environment'] = conf.get('environment', {})
+                if vhost not in conf['environment']:
+                    conf['environment'].append(vhost)
 
             # cleanup for next rebuild
             cmd = '{0} "rm -f levels/{1}/REBUILD"'.format(self.ssh, level_id)
