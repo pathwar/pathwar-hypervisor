@@ -18,6 +18,12 @@ logger = logging.getLogger('hypervisor')
 HTTP_LEVEL_PORT = int(os.environ['HTTP_LEVEL_PORT'])
 AUTH_PROXY = os.environ['AUTH_PROXY']
 
+
+def check_call(*args, **kwargs):
+    logger.debug("Executing: {}".format(*args))
+    return subprocess.check_call(*args, **kwargs)
+
+
 class Level(object):
     def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None, source=None):
         self.id = id
@@ -73,7 +79,7 @@ proxy_set_header Authorization "";
             os.write(fd, docker_compose)
             os.close(fd)
             cmd = '{0} {1} {2}:hypervisor-nginx-proxy/docker-compose.yml'.format(self.scp, tmpfile, self.host)
-            subprocess.check_call(cmd, shell=True)
+            check_call(cmd, shell=True)
             os.remove(tmpfile)
 
             # overwrite the config
@@ -81,7 +87,7 @@ proxy_set_header Authorization "";
             os.write(fd, my_proxy)
             os.close(fd)
             cmd = '{0} {1} {2}:hypervisor-nginx-proxy/my_proxy.conf'.format(self.scp, tmpfile, self.host)
-            subprocess.check_call(cmd, shell=True)
+            check_call(cmd, shell=True)
             os.remove(tmpfile)
 
             # docker-compose up the proxy
@@ -102,7 +108,7 @@ proxy_set_header Authorization "";
         os.write(fd, yaml.dump(compose, default_flow_style=False))
         os.close(fd)
         cmd = '{0} {1} {2}:levels/{3}/docker-compose.yml'.format(self.scp, tmpfile, self.host, level_id)
-        subprocess.check_call(cmd, shell=True)
+        check_call(cmd, shell=True)
         os.remove(tmpfile)
 
     def get_running_level_ids(self):
@@ -136,7 +142,7 @@ proxy_set_header Authorization "";
             if m:
                 try:
                     cmd = '{0} "cat levels/{1}/REBUILD"'.format(self.ssh, level_id)
-                    subprocess.check_call(cmd, shell=True)
+                    check_call(cmd, shell=True)
                     # raise here if level has no REBUILD file
                 except:
                     logger.info('do not rebuild level image for {0}, not changed'.format(level_id))
@@ -186,7 +192,7 @@ proxy_set_header Authorization "";
         logger.info('extracting level on {0}'.format(self.host))
         source = 'levels/{0}/source'.format(level_id)
         cmd = '{0} \'test -f {1} && [ $(cat {1}) = {2} ] || (mkdir -p levels/{4} ; tar -xf /tmp/{3} -C levels/{4} ; echo {2} > {1} ; touch levels/{4}/REBUILD)\''.format(self.ssh, source, tarball, hashtar, level_id)
-        subprocess.check_call(cmd, shell=True)
+        check_call(cmd, shell=True)
 
         # preparing level image
         logger.info('preparing level image')
@@ -202,13 +208,21 @@ proxy_set_header Authorization "";
         logger.info('building level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose build"'.format(self.ssh, cwd)
-        subprocess.check_call(cmd, shell=True)
+        check_call(cmd, shell=True)
+
+        main = compose.keys()[0]
+        section = compose.values()[0]
+        level_type = section.get('labels', {}).get('PATHWAR_LEVEL_TYPE', 'web')
+        if level_type == "unix":
+            cmd = '{0} "cd {1}; docker-compose run {2}; docker ps -lq; docker inspect $(docker ps -lq)"'.format(self.ssh, cwd, main)
+            check_call(cmd, shell=True)
+            print("DOCKER_COMPOSE", level_type)
 
         # running level
         logger.info('running level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
-        subprocess.check_call(cmd, shell=True)
+        check_call(cmd, shell=True)
 
         return True
 
