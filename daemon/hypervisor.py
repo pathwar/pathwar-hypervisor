@@ -121,7 +121,11 @@ class Hypervisor(object):
         response['private_urls'] = []
         response['private_urls'].append({'name': 'http', 'url': 'http://{0}:{1}/'.format(level.address, HTTP_LEVEL_PORT)})
         response['urls'] = []
-        response['urls'].append({'name': 'http', 'url': 'http://{0}.levels.pathwar.net:80/'.format(api_level_instance['_id'])})
+        response['urls'].append({
+            'kind': 'http',
+            'name': 'http',
+            'url': 'http://{0}.levels.pathwar.net:80/'.format(api_level_instance['_id']),
+        })
 
         # extract passphrases
         response['passphrases'] = level.passphrases
