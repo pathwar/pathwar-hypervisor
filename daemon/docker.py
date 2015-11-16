@@ -231,6 +231,12 @@ proxy_set_header Authorization "";
 
         return True
 
+    def get_level_type(self, level_id):
+        compose = self._get_compose(level_id)
+        section = compose.values()[0]
+        level_type = section.get('labels', {}).get('PATHWAR_LEVEL_TYPE', 'web')
+        return level_type
+
     def inspect_level(self, level_id):
         """ I inspect a level. """
         level = Level()
@@ -334,3 +340,9 @@ class DockerPool(object):
                 level = server.inspect_level(level_id)
                 self.levels[level_id] = (level, server)
                 return level
+
+    def get_level_type(self, level_id):
+        """ I get the level type. """
+        server = self._pick_server()
+        if server:
+            return server.get_level_type(level_id)
