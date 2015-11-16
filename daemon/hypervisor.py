@@ -117,11 +117,24 @@ class Hypervisor(object):
 
         # patch level URL
 
+        level_type = self.pool.get_level_type(level_id)
+
         # FIXME - this is a temporary hack for Epitech's session
         response['private_urls'] = []
         response['private_urls'].append({'name': 'http', 'url': 'http://{0}:{1}/'.format(level.address, HTTP_LEVEL_PORT)})
         response['urls'] = []
-        response['urls'].append({'name': 'http', 'url': 'http://{0}.levels.pathwar.net:80/'.format(api_level_instance['_id'])})
+        if level_type == 'unix':
+            response['urls'].append({
+                'kind': 'ssh2docker',
+                'name': 'ssh',
+                'url': 'ssh://{0}@ssh.pathwar.net:22/'.format(api_level_instance['_id']),
+            })
+        else:
+            response['urls'].append({
+                'kind': 'http',
+                'name': 'http',
+                'url': 'http://{0}.levels.pathwar.net:80/'.format(api_level_instance['_id']),
+            })
 
         # extract passphrases
         response['passphrases'] = level.passphrases
