@@ -24,6 +24,16 @@ def check_call(*args, **kwargs):
     return subprocess.check_call(*args, **kwargs)
 
 
+def call(*args, **kwargs):
+    logger.debug("Executing: {}".format(*args))
+    return subprocess.call(*args, **kwargs)
+
+
+def check_output(*args, **kwargs):
+    logger.debug("Executing: {}".format(*args))
+    return subprocess.check_output(*args, **kwargs)
+
+
 class Level(object):
     def __init__(self, id=None, passphrases=None, address=None, dumped_at=None, version=None, source=None):
         self.id = id
@@ -72,7 +82,7 @@ proxy_set_header Authorization "";
         try:
             # create dir if not exists
             cmd = '{0} "mkdir -p hypervisor-nginx-proxy"'.format(self.ssh)
-            subprocess.call(cmd, shell=True)
+            call(cmd, shell=True)
 
             # overwrite compose file
             fd, tmpfile = tempfile.mkstemp()
@@ -93,14 +103,14 @@ proxy_set_header Authorization "";
             # docker-compose up the proxy
             logger.info('running nginx-proxy on {0}'.format(self.host))
             cmd = '{0} "cd hypervisor-nginx-proxy ; docker-compose up -d"'.format(self.ssh)
-            subprocess.call(cmd, shell=True)
+            call(cmd, shell=True)
         except Exception as e:
             logger.warning('failed to setup nginx proxy server on {0}'.format(self.host),  exc_info=True)
 
     def _get_compose(self, level_id):
         """ I return the docker-compose.yml file of a level. """
         cmd = '{0} cat levels/{1}/docker-compose.yml'.format(self.ssh, level_id)
-        return yaml.load(subprocess.check_output(cmd, shell=True))
+        return yaml.load(check_output(cmd, shell=True))
 
     def _write_compose(self, level_id, compose):
         """ I write back the docker-compose.yml file of a level. """
@@ -115,7 +125,7 @@ proxy_set_header Authorization "";
         """ I return the list of IDs of running levels on the host. """
         uuids = set()
         cmd = '{0} "docker ps --no-trunc"'.format(self.ssh)
-        for line in subprocess.check_output(cmd, shell=True).splitlines():
+        for line in check_output(cmd, shell=True).splitlines():
             m = re.match('^.*([a-z0-9]{32})_.*_.*$', line)
             if m:
                 uuid_merged = m.group(1)
@@ -133,13 +143,13 @@ proxy_set_header Authorization "";
         level_type = self.get_level_type(level_id)
         if level_type == "unix":
             cmd = "{0} 'docker ps -q --filter=label=ssh2docker --filter=image=unix-{1} | xargs docker kill'".format(self.ssh, level_id)
-            subprocess.call(cmd, shell=True)
+            call(cmd, shell=True)
 
         # stopping level
         logger.info('stopping level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
         cmd = '{0} "test -d {1} && (cd {1} ; docker-compose kill; docker-compose rm -fv)"'.format(self.ssh, cwd)
-        subprocess.call(cmd, shell=True)
+        call(cmd, shell=True)
 
     def rebuild_if_needed(self, level_id, tarball, conf):
             # never reached if level is not needed
@@ -159,7 +169,7 @@ proxy_set_header Authorization "";
                 # logger.info('removing level {0} on {1}'.format(level_id, self.host))
                 # cwd = 'levels/{0}'.format(level_id)
                 # cmd = '{0} "cd {1} ; docker-compose rm -f"'.format(self.ssh, cwd)
-                # subprocess.call(cmd, shell=True)
+                # call(cmd, shell=True)
 
 
                 # rebuild
@@ -185,7 +195,7 @@ proxy_set_header Authorization "";
 
             # cleanup for next rebuild
             cmd = '{0} "rm -f levels/{1}/REBUILD"'.format(self.ssh, level_id)
-            subprocess.call(cmd, shell=True)
+            call(cmd, shell=True)
 
     def create_level(self, level_id, tarball):
         """ I create a level from a tarball. """
@@ -194,7 +204,7 @@ proxy_set_header Authorization "";
         logger.info('downloading {0}'.format(tarball))
         hashtar = hashlib.sha224(tarball).hexdigest()
         cmd = '{0} "wget -nc -q {1} -O /tmp/{2}"'.format(self.ssh, tarball, hashtar)
-        subprocess.call(cmd, shell=True)
+        call(cmd, shell=True)
 
         # only extract level if source changed
         logger.info('extracting level on {0}'.format(self.host))
@@ -227,12 +237,12 @@ proxy_set_header Authorization "";
             cmd = '{0} "cd {1}; docker-compose run {2}; docker commit \`docker ps -lq\` unix-{3}"'.format(self.ssh, cwd, main, str(level_id))
             check_call(cmd, shell=True)
             print("DOCKER_COMPOSE", level_type)
-
-        # running level
-        logger.info('running level {0} on {1}'.format(level_id, self.host))
-        cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
-        check_call(cmd, shell=True)
+        else:
+            # running level
+            logger.info('running level {0} on {1}'.format(level_id, self.host))
+            cwd = 'levels/{0}'.format(level_id)
+            cmd = '{0} "cd {1} ; docker-compose up -d"'.format(self.ssh, cwd)
+            check_call(cmd, shell=True)
 
         return True
 
@@ -253,42 +263,53 @@ proxy_set_header Authorization "";
         level.tarball = None
         level.passphrases = []
         logger.info('fetching passphrases for {0} on {1}'.format(level_id, self.host))
-        cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "cd {1} ; docker-compose ps -q"'.format(self.ssh, cwd)
-        for docker_uuid in subprocess.check_output(cmd, shell=True).splitlines():
-            if not level.dumped_at:
-                cmd = '{0} "docker inspect -f {{{{.State.StartedAt}}}} {1}"'.format(self.ssh, docker_uuid)
-                uptime = subprocess.check_output(cmd, shell=True).strip()
-                level.dumped_at = dateutil.parser.parse(uptime)
-                logger.info('found dumped_at {0} for {1} on {2}'.format(level.dumped_at, level_id, self.host))
+        level_type = self.get_level_type(level_id)
+        if level_type == "unix":
+            cmd = '{0} "docker run --entrypoint=bash --rm unix-{1} -c \'for file in /pathwar/passphrases/*; do echo -n \\"\\$(basename \\$file) \\"; cat \\$file; done\'"'.format(self.ssh, level_id)
+            for line in check_output(cmd, shell=True).splitlines():
+                chunks = line.split()
+                if len(chunks) == 2:
+                    logger.info('found passphrase {0} for {1} on {2}'.format(chunks[0], level_id, self.host))
+                    level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
+                    # FIXME: set level.dumpet_at to the image build date
+                    # FIXME: set level.version
+        else:
+            cwd = 'levels/{0}'.format(level_id)
+            cmd = '{0} "cd {1} ; docker-compose ps -q"'.format(self.ssh, cwd)
+            for docker_uuid in check_output(cmd, shell=True).splitlines():
+                if not level.dumped_at:
+                    cmd = '{0} "docker inspect -f {{{{.State.StartedAt}}}} {1}"'.format(self.ssh, docker_uuid)
+                    uptime = check_output(cmd, shell=True).strip()
+                    level.dumped_at = dateutil.parser.parse(uptime)
+                    logger.info('found dumped_at {0} for {1} on {2}'.format(level.dumped_at, level_id, self.host))
 
-            if not level.version:
+                if not level.version:
+                    try:
+                        # here, it is fine to fail
+                        cmd = '{0} "docker exec {1} bash -c \'grep version /pathwar/level.yml | awk \\"// {{ print \\$2; }}\\"\'"'.format(self.ssh, docker_uuid)
+                        version = check_output(cmd, shell=True).strip()
+                        if len(version):
+                            logger.info('found version {0} for {1} on {2}'.format(version, level_id, self.host))
+                            level.version = version
+                    except:
+                        pass
+
                 try:
-                    # here, it is fine to fail
-                    cmd = '{0} "docker exec {1} bash -c \'grep version /pathwar/level.yml | awk \\"// {{ print \\$2; }}\\"\'"'.format(self.ssh, docker_uuid)
-                    version = subprocess.check_output(cmd, shell=True).strip()
-                    if len(version):
-                        logger.info('found version {0} for {1} on {2}'.format(version, level_id, self.host))
-                        level.version = version
+                    # here, it is fine to fail, not all containers have passphrases.
+                    # please, be careful with this line, this is really tricky (there
+                    # are several levels of inhibition mixing together).
+                    cmd = '{0} "docker exec {1} bash -c \'for file in /pathwar/passphrases/*; do echo -n \\"\\$(basename \\$file) \\"; cat \\$file; done\'"'.format(self.ssh, docker_uuid)
+                    for line in check_output(cmd, shell=True).splitlines():
+                        chunks = line.split()
+                        if len(chunks) == 2:
+                            logger.info('found passphrase {0} for {1} on {2}'.format(chunks[0], level_id, self.host))
+                            level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
                 except:
                     pass
 
-            try:
-                # here, it is fine to fail, not all containers have passphrases.
-                # please, be careful with this line, this is really tricky (there
-                # are several levels of inhibition mixing together).
-                cmd = '{0} "docker exec {1} bash -c \'for file in /pathwar/passphrases/*; do echo -n \\"\\$(basename \\$file) \\"; cat \\$file; done\'"'.format(self.ssh, docker_uuid)
-                for line in subprocess.check_output(cmd, shell=True).splitlines():
-                    chunks = line.split()
-                    if len(chunks) == 2:
-                        logger.info('found passphrase {0} for {1} on {2}'.format(chunks[0], level_id, self.host))
-                        level.passphrases.append({'key': chunks[0], 'value': chunks[1]})
-            except:
-                pass
-
         try:
             cmd = '{0} "cat levels/{1}/source"'.format(self.ssh, level_id)
-            level.source = subprocess.check_output(cmd, shell=True).strip()
+            level.source = check_output(cmd, shell=True).strip()
         except Exception as e:
             logger.warning("failed to find source on server {0} for level {1}".format(self.host, level_id), exc_info=True)
             pass
