@@ -130,10 +130,15 @@ proxy_set_header Authorization "";
     def destroy_level(self, level_id):
         """ I destroy a level by ID. """
 
+        level_type = self.get_level_type(level_id)
+        if level_type == "unix":
+            cmd = "{0} 'docker ps -q --filter=label=ssh2docker --filter=image=unix-{1} | xargs docker kill'".format(self.ssh, level_id)
+            subprocess.call(cmd, shell=True)
+
         # stopping level
         logger.info('stopping level {0} on {1}'.format(level_id, self.host))
         cwd = 'levels/{0}'.format(level_id)
-        cmd = '{0} "test -d {1} && (cd {1} ; docker-compose kill)"'.format(self.ssh, cwd)
+        cmd = '{0} "test -d {1} && (cd {1} ; docker-compose kill; docker-compose rm -fv)"'.format(self.ssh, cwd)
         subprocess.call(cmd, shell=True)
 
     def rebuild_if_needed(self, level_id, tarball, conf):
