@@ -231,6 +231,7 @@ proxy_set_header Authorization "";
         main = compose.keys()[0]
         section = compose.values()[0]
         level_type = section.get('labels', {}).get('PATHWAR_LEVEL_TYPE', 'web')
+        level_type = section.get('labels', {}).get('PWR_LEVEL_TYPE', 'web')
         if level_type == "unix":
             # FIXME: docker ps -lq is not thread safe
             # we should use the docker-compose feature: name
@@ -250,6 +251,7 @@ proxy_set_header Authorization "";
         compose = self._get_compose(level_id)
         section = compose.values()[0]
         level_type = section.get('labels', {}).get('PATHWAR_LEVEL_TYPE', 'web')
+        level_type = section.get('labels', {}).get('PWR_LEVEL_TYPE', 'web')
         return level_type
 
     def inspect_level(self, level_id):
